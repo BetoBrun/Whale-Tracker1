@@ -25,52 +25,61 @@
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px; line-height:1.5; min-height:100vh; }
-  body::before { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px); pointer-events:none; z-index:1000; }
+  body::before { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px); pointer-events:none; z-index:1000; }
 
-  header { border-bottom:1px solid var(--border); padding:0 32px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:rgba(8,11,15,0.92); backdrop-filter:blur(12px); z-index:100; }
-  .logo { display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:0.08em; color:var(--green); }
+  /* ── header ── */
+  header { border-bottom:1px solid var(--border); padding:0 32px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:rgba(8,11,15,.92); backdrop-filter:blur(12px); z-index:100; }
+  .logo { display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--green); }
   .logo-icon { width:28px; height:28px; background:linear-gradient(135deg,#00e5a0,#0099ff); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; }
   .header-right { display:flex; align-items:center; gap:20px; }
-  .live-dot { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; color:var(--green); letter-spacing:0.05em; }
+  .live-dot { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; color:var(--green); letter-spacing:.05em; }
   .live-dot.offline { color:var(--muted); }
   .live-dot::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; animation:pulse 2s ease-in-out infinite; }
   .live-dot.offline::before { animation:none; }
-  @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,229,160,0.4)} 50%{opacity:.7;box-shadow:0 0 0 4px rgba(0,229,160,0)} }
+  @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,229,160,.4)} 50%{opacity:.7;box-shadow:0 0 0 4px rgba(0,229,160,0)} }
   .btc-price { font-family:var(--mono); font-size:12px; color:var(--text2); }
   .btc-price span { color:var(--text); font-weight:700; }
   .last-update { font-family:var(--mono); font-size:10px; color:var(--muted); }
 
-  main { max-width:1100px; margin:0 auto; padding:28px 24px 60px; display:grid; grid-template-columns:1fr 340px; gap:20px; }
+  /* ── nav tabs ── */
+  .tab-nav { max-width:1100px; margin:0 auto; padding:20px 24px 0; display:flex; gap:4px; border-bottom:1px solid var(--border); }
+  .tab-btn { font-family:var(--mono); font-size:11px; letter-spacing:.07em; padding:8px 18px; border-radius:6px 6px 0 0; border:1px solid transparent; background:transparent; color:var(--text2); cursor:pointer; transition:all .15s; margin-bottom:-1px; }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { border-color:var(--border); border-bottom-color:var(--bg); background:var(--panel); color:var(--green); }
 
+  /* ── layout ── */
+  main { max-width:1100px; margin:0 auto; padding:24px 24px 60px; display:grid; grid-template-columns:1fr 340px; gap:20px; }
+  .tab-content { display:none; }
+  .tab-content.active { display:contents; }
+
+  /* ── signal card ── */
   .signal-card { grid-column:1/-1; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:24px 28px; display:flex; align-items:center; justify-content:space-between; gap:24px; position:relative; overflow:hidden; }
   .signal-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--signal-color,var(--muted)); transition:background .5s; }
-  .signal-card.bullish { --signal-color:var(--green); }
-  .signal-card.bearish { --signal-color:var(--red); }
-  .signal-card.neutro  { --signal-color:var(--yellow); }
+  .signal-card.bullish{--signal-color:var(--green)} .signal-card.bearish{--signal-color:var(--red)} .signal-card.neutro{--signal-color:var(--yellow)}
   .signal-main { display:flex; align-items:center; gap:20px; }
-  .signal-badge { font-family:var(--mono); font-size:26px; font-weight:700; letter-spacing:0.04em; min-width:150px; transition:color .5s; }
-  .signal-meta { display:flex; flex-direction:column; gap:4px; }
-  .signal-meta .label { font-size:11px; font-family:var(--mono); color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+  .signal-badge { font-family:var(--mono); font-size:26px; font-weight:700; letter-spacing:.04em; min-width:150px; }
+  .signal-meta .label { font-size:11px; font-family:var(--mono); color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
   .signal-meta .value { font-size:13px; color:var(--text2); }
   .signal-meta .value strong { color:var(--text); }
   .signal-stats { display:flex; gap:32px; }
   .stat-item { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
-  .stat-item .stat-label { font-size:10px; font-family:var(--mono); color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+  .stat-item .stat-label { font-size:10px; font-family:var(--mono); color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
   .stat-item .stat-val { font-family:var(--mono); font-size:18px; font-weight:700; }
   .stat-item .stat-sub { font-size:11px; color:var(--text2); font-family:var(--mono); }
-  .green{color:var(--green)} .red{color:var(--red)} .yellow{color:var(--yellow)}
 
+  /* ── bar ── */
   .longshort-bar { grid-column:1/-1; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px 24px; display:flex; flex-direction:column; gap:10px; }
   .bar-header { display:flex; justify-content:space-between; font-size:11px; font-family:var(--mono); color:var(--muted); }
   .bar-track { height:10px; border-radius:99px; background:var(--border); overflow:hidden; display:flex; }
-  .bar-long { height:100%; background:var(--green); border-radius:99px 0 0 99px; transition:width 1s cubic-bezier(0.4,0,0.2,1); }
+  .bar-long { height:100%; background:var(--green); border-radius:99px 0 0 99px; transition:width 1s cubic-bezier(.4,0,.2,1); }
   .bar-short { height:100%; background:var(--red); border-radius:0 99px 99px 0; flex:1; }
   .bar-labels { display:flex; justify-content:space-between; font-family:var(--mono); font-size:12px; }
 
+  /* ── feed ── */
   .feed-section { display:flex; flex-direction:column; gap:12px; }
-  .section-title { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+  .section-title { font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
   .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
-  .alert-card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; cursor:default; transition:border-color .2s,background .2s; position:relative; overflow:hidden; animation:slideIn .35s ease both; }
+  .alert-card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; transition:border-color .2s,background .2s; position:relative; overflow:hidden; animation:slideIn .35s ease both; }
   @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
   .alert-card:hover { border-color:var(--border2); background:#131c26; }
   .alert-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--card-color,var(--muted)); border-radius:3px 0 0 3px; }
@@ -78,22 +87,29 @@
   .card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
   .card-signal { display:flex; align-items:center; gap:8px; }
   .card-signal-icon { width:20px; height:20px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:var(--mono); }
-  .icon-bull{background:rgba(0,229,160,0.15);color:var(--green)} .icon-bear{background:rgba(255,64,96,0.15);color:var(--red)} .icon-neut{background:rgba(245,197,24,0.15);color:var(--yellow)} .icon-nd{background:rgba(74,96,112,0.2);color:var(--muted)}
+  .icon-bull{background:rgba(0,229,160,.15);color:var(--green)} .icon-bear{background:rgba(255,64,96,.15);color:var(--red)} .icon-neut{background:rgba(245,197,24,.15);color:var(--yellow)} .icon-nd{background:rgba(74,96,112,.2);color:var(--muted)}
   .card-signal-name { font-family:var(--mono); font-size:13px; font-weight:700; }
-  .card-strength { font-size:11px; font-family:var(--mono); padding:2px 8px; border-radius:4px; letter-spacing:0.05em; }
-  .str-forte{background:rgba(0,229,160,0.1);color:var(--green)} .str-mod{background:rgba(245,197,24,0.1);color:var(--yellow)} .str-fraco{background:rgba(74,96,112,0.2);color:var(--muted)}
+  .card-strength { font-size:11px; font-family:var(--mono); padding:2px 8px; border-radius:4px; letter-spacing:.05em; }
+  .str-forte{background:rgba(0,229,160,.1);color:var(--green)} .str-mod{background:rgba(245,197,24,.1);color:var(--yellow)} .str-fraco{background:rgba(74,96,112,.2);color:var(--muted)}
   .card-time { font-family:var(--mono); font-size:10px; color:var(--muted); text-align:right; line-height:1.6; }
   .card-body { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
   .mini-stat .ms-label { font-size:10px; font-family:var(--mono); color:var(--muted); }
   .mini-stat .ms-val { font-family:var(--mono); font-size:12px; color:var(--text); }
   .card-assets { display:flex; gap:6px; flex-wrap:wrap; }
   .asset-pill { display:flex; align-items:center; gap:4px; padding:3px 8px; border-radius:4px; font-family:var(--mono); font-size:10px; background:var(--surface); border:1px solid var(--border); color:var(--text2); }
-  .long-pill{border-color:rgba(0,229,160,0.25);color:var(--green)} .short-pill{border-color:rgba(255,64,96,0.25);color:var(--red)}
-  .new-badge { font-family:var(--mono); font-size:9px; padding:1px 5px; border-radius:3px; background:rgba(0,229,160,0.15); color:var(--green); margin-left:4px; }
+  .long-pill{border-color:rgba(0,229,160,.25);color:var(--green)} .short-pill{border-color:rgba(255,64,96,.25);color:var(--red)}
+  .new-badge { font-family:var(--mono); font-size:9px; padding:1px 5px; border-radius:3px; background:rgba(0,229,160,.15); color:var(--green); margin-left:4px; }
+  .filter-bar { display:flex; gap:6px; margin-bottom:4px; }
+  .filter-btn { font-family:var(--mono); font-size:10px; letter-spacing:.06em; padding:4px 12px; border-radius:4px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; transition:all .15s; }
+  .filter-btn:hover{border-color:var(--border2);color:var(--text)}
+  .f-all{border-color:var(--blue);color:var(--blue);background:rgba(61,156,240,.08)} .f-bull{border-color:var(--green);color:var(--green);background:rgba(0,229,160,.08)} .f-bear{border-color:var(--red);color:var(--red);background:rgba(255,64,96,.08)} .f-neut{border-color:var(--yellow);color:var(--yellow);background:rgba(245,197,24,.08)}
+  .feed-scroll { max-height:560px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px; }
+  .feed-scroll::-webkit-scrollbar{width:4px} .feed-scroll::-webkit-scrollbar-track{background:transparent} .feed-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 
+  /* ── sidebar ── */
   .sidebar { display:flex; flex-direction:column; gap:16px; }
   .side-panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px; }
-  .side-panel-title { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+  .side-panel-title { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
   .asset-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); gap:8px; }
   .asset-row:last-child{border-bottom:none}
   .ar-coin { font-family:var(--mono); font-size:12px; font-weight:700; color:var(--text); min-width:44px; }
@@ -101,7 +117,7 @@
   .ar-fill { position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
   .ar-pct { font-family:var(--mono); font-size:11px; min-width:36px; text-align:right; }
   .ar-dir { font-size:10px; font-family:var(--mono); padding:2px 6px; border-radius:3px; min-width:42px; text-align:center; }
-  .dir-l{background:rgba(0,229,160,0.12);color:var(--green)} .dir-s{background:rgba(255,64,96,0.12);color:var(--red)}
+  .dir-l{background:rgba(0,229,160,.12);color:var(--green)} .dir-s{background:rgba(255,64,96,.12);color:var(--red)}
   .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .stats-cell { display:flex; flex-direction:column; gap:3px; }
   .sc-label { font-size:10px; font-family:var(--mono); color:var(--muted); }
@@ -110,19 +126,73 @@
   .mm-list { display:flex; flex-direction:column; gap:6px; }
   .mm-item { display:flex; justify-content:space-between; align-items:center; padding:5px 8px; background:var(--surface); border-radius:5px; border:1px solid var(--border); }
   .mm-name { font-family:var(--mono); font-size:11px; color:var(--text2); }
-  .mm-badge { font-family:var(--mono); font-size:10px; color:var(--muted); padding:1px 6px; border-radius:3px; background:rgba(74,96,112,0.2); }
-  .filter-bar { display:flex; gap:6px; margin-bottom:4px; }
-  .filter-btn { font-family:var(--mono); font-size:10px; letter-spacing:0.06em; padding:4px 12px; border-radius:4px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; transition:all .15s; }
-  .filter-btn:hover{border-color:var(--border2);color:var(--text)}
-  .f-all  { border-color:var(--blue);  color:var(--blue);   background:rgba(61,156,240,0.08); }
-  .f-bull { border-color:var(--green); color:var(--green);  background:rgba(0,229,160,0.08); }
-  .f-bear { border-color:var(--red);   color:var(--red);    background:rgba(255,64,96,0.08); }
-  .f-neut { border-color:var(--yellow);color:var(--yellow); background:rgba(245,197,24,0.08); }
-  .empty { text-align:center; padding:40px 24px; color:var(--muted); font-family:var(--mono); font-size:11px; letter-spacing:0.06em; line-height:2; }
-  .feed-scroll { max-height:580px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px; }
-  .feed-scroll::-webkit-scrollbar{width:4px} .feed-scroll::-webkit-scrollbar-track{background:transparent} .feed-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .mm-badge { font-family:var(--mono); font-size:10px; color:var(--muted); padding:1px 6px; border-radius:3px; background:rgba(74,96,112,.2); }
+
+  /* ── POSIÇÕES TAB ── */
+  .pos-tab-content { grid-column:1/-1; display:flex; flex-direction:column; gap:16px; }
+  .whale-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .whale-header { padding:14px 20px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; transition:background .15s; border-bottom:1px solid transparent; }
+  .whale-header:hover { background:#131c26; }
+  .whale-header.open { border-bottom-color:var(--border); }
+  .wh-left { display:flex; align-items:center; gap:12px; }
+  .wh-rank { font-family:var(--mono); font-size:11px; color:var(--muted); min-width:24px; }
+  .wh-name { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--text); }
+  .wh-qs { font-family:var(--mono); font-size:10px; color:var(--muted); padding:2px 6px; border-radius:3px; background:var(--surface); border:1px solid var(--border); }
+  .wh-bias { font-family:var(--mono); font-size:11px; padding:3px 10px; border-radius:4px; font-weight:700; }
+  .bias-long{background:rgba(0,229,160,.12);color:var(--green)} .bias-short{background:rgba(255,64,96,.12);color:var(--red)}
+  .wh-right { display:flex; align-items:center; gap:16px; }
+  .wh-notional { font-family:var(--mono); font-size:12px; color:var(--text2); }
+  .wh-notional strong { color:var(--text); }
+  .wh-chevron { font-size:10px; color:var(--muted); transition:transform .2s; }
+  .wh-chevron.open { transform:rotate(180deg); }
+
+  /* posições table */
+  .pos-table-wrap { padding:0 20px 16px; }
+  .pos-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:11px; }
+  .pos-table th { color:var(--muted); text-align:left; padding:8px 8px 6px; border-bottom:1px solid var(--border); letter-spacing:.05em; font-weight:400; font-size:10px; }
+  .pos-table th.r { text-align:right; }
+  .pos-table td { padding:7px 8px; border-bottom:1px solid rgba(30,42,56,.5); color:var(--text2); }
+  .pos-table td.r { text-align:right; }
+  .pos-table tr:last-child td { border-bottom:none; }
+  .pos-table tr:hover td { background:rgba(255,255,255,.02); }
+  .side-long  { color:var(--green); font-weight:700; }
+  .side-short { color:var(--red);   font-weight:700; }
+  .pnl-pos { color:var(--green); }
+  .pnl-neg { color:var(--red); }
+
+  /* copy block */
+  .copy-block { margin:12px 20px 16px; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .copy-header { display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-bottom:1px solid var(--border); }
+  .copy-label { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.06em; }
+  .copy-btn { font-family:var(--mono); font-size:10px; padding:3px 10px; border-radius:4px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:5px; }
+  .copy-btn:hover { border-color:var(--green); color:var(--green); }
+  .copy-btn.copied { border-color:var(--green); color:var(--green); background:rgba(0,229,160,.08); }
+  .copy-text { padding:10px 14px; font-family:var(--mono); font-size:11px; color:var(--text2); line-height:1.8; white-space:pre-wrap; word-break:break-all; max-height:160px; overflow-y:auto; }
+  .copy-text::-webkit-scrollbar{width:3px} .copy-text::-webkit-scrollbar-thumb{background:var(--border2)}
+
+  /* resumo geral */
+  .summary-grid { grid-column:1/-1; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .sum-card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .sum-label { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.06em; margin-bottom:6px; }
+  .sum-val { font-family:var(--mono); font-size:20px; font-weight:700; }
+  .sum-sub { font-size:11px; color:var(--text2); margin-top:3px; font-family:var(--mono); }
+
+  /* utils */
+  .green{color:var(--green)} .red{color:var(--red)} .yellow{color:var(--yellow)}
+  .empty { text-align:center; padding:40px; color:var(--muted); font-family:var(--mono); font-size:11px; letter-spacing:.06em; line-height:2; }
   .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border2); border-top-color:var(--green); border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; margin-right:6px; }
   @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* whale filter */
+  .whale-filter { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .wf-btn { font-family:var(--mono); font-size:10px; padding:4px 12px; border-radius:4px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; transition:all .15s; letter-spacing:.05em; }
+  .wf-btn:hover{border-color:var(--border2);color:var(--text)}
+  .wf-btn.wf-all{border-color:var(--blue);color:var(--blue);background:rgba(61,156,240,.08)}
+  .wf-btn.wf-long{border-color:var(--green);color:var(--green);background:rgba(0,229,160,.08)}
+  .wf-btn.wf-short{border-color:var(--red);color:var(--red);background:rgba(255,64,96,.08)}
+  .copy-all-btn { font-family:var(--mono); font-size:11px; padding:6px 16px; border-radius:6px; border:1px solid var(--border); background:var(--panel); color:var(--text2); cursor:pointer; transition:all .15s; margin-left:auto; display:flex; align-items:center; gap:6px; }
+  .copy-all-btn:hover{border-color:var(--green);color:var(--green)}
+  .copy-all-btn.copied{border-color:var(--green);color:var(--green);background:rgba(0,229,160,.08)}
 </style>
 </head>
 <body>
@@ -139,114 +209,112 @@
   </div>
 </header>
 
-<main>
-  <!-- sinal atual -->
-  <div class="signal-card" id="signal-card">
-    <div class="signal-main">
-      <div class="signal-badge" id="sig-label"><span class="spinner"></span></div>
-      <div class="signal-meta">
-        <div class="label">FORÇA</div>
-        <div class="value" id="sig-str">aguardando dados…</div>
-        <div class="label" style="margin-top:6px">ÚLTIMA ATUALIZAÇÃO</div>
-        <div class="value" id="sig-ts">—</div>
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('alertas',this)">ALERTAS</button>
+  <button class="tab-btn" onclick="switchTab('posicoes',this)">POSIÇÕES DAS BALEIAS</button>
+</div>
+
+<main id="main-grid">
+
+  <!-- ══ TAB ALERTAS ══ -->
+  <div class="tab-content active" id="tab-alertas">
+
+    <div class="signal-card" id="signal-card">
+      <div class="signal-main">
+        <div class="signal-badge" id="sig-label"><span class="spinner"></span></div>
+        <div class="signal-meta">
+          <div class="label">FORÇA</div>
+          <div class="value" id="sig-str">aguardando dados…</div>
+          <div class="label" style="margin-top:6px">ÚLTIMA ATUALIZAÇÃO</div>
+          <div class="value" id="sig-ts">—</div>
+        </div>
+      </div>
+      <div class="signal-stats">
+        <div class="stat-item"><div class="stat-label">Baleias ativas</div><div class="stat-val" id="sig-whales">—</div><div class="stat-sub">direcionais</div></div>
+        <div class="stat-item"><div class="stat-label">Total LONG</div><div class="stat-val green" id="sig-long">—</div><div class="stat-sub">notional</div></div>
+        <div class="stat-item"><div class="stat-label">Total SHORT</div><div class="stat-val red" id="sig-short">—</div><div class="stat-sub">notional</div></div>
       </div>
     </div>
-    <div class="signal-stats">
-      <div class="stat-item">
-        <div class="stat-label">Baleias ativas</div>
-        <div class="stat-val" id="sig-whales">—</div>
-        <div class="stat-sub">direcionais</div>
+
+    <div class="longshort-bar">
+      <div class="bar-header"><span class="green">LONG</span><span style="color:var(--text2);font-size:10px">distribuição ponderada por quality_score</span><span class="red">SHORT</span></div>
+      <div class="bar-track"><div class="bar-long" id="bar-long" style="width:50%"></div><div class="bar-short"></div></div>
+      <div class="bar-labels"><span class="green" id="bar-long-pct">—</span><span class="red" id="bar-short-pct">—</span></div>
+    </div>
+
+    <div class="feed-section">
+      <div class="section-title">Feed de alertas</div>
+      <div class="filter-bar">
+        <button class="filter-btn f-all"  onclick="applyFilter('all',this)">TODOS</button>
+        <button class="filter-btn"        onclick="applyFilter('bullish',this)">BULLISH</button>
+        <button class="filter-btn"        onclick="applyFilter('bearish',this)">BEARISH</button>
+        <button class="filter-btn"        onclick="applyFilter('neutro',this)">NEUTRO</button>
       </div>
-      <div class="stat-item">
-        <div class="stat-label">Total LONG</div>
-        <div class="stat-val green" id="sig-long">—</div>
-        <div class="stat-sub">notional</div>
+      <div class="feed-scroll" id="feed">
+        <div class="empty"><span class="spinner"></span>Carregando…</div>
       </div>
-      <div class="stat-item">
-        <div class="stat-label">Total SHORT</div>
-        <div class="stat-val red" id="sig-short">—</div>
-        <div class="stat-sub">notional</div>
+    </div>
+
+    <div class="sidebar">
+      <div class="side-panel">
+        <div class="side-panel-title">Snapshot atual</div>
+        <div class="stats-grid">
+          <div class="stats-cell"><div class="sc-label">Coletadas</div><div class="sc-val" id="s-col">—</div><div class="sc-sub">do leaderboard</div></div>
+          <div class="stats-cell"><div class="sc-label">Direcionais</div><div class="sc-val green" id="s-dir">—</div><div class="sc-sub">ativas no sinal</div></div>
+          <div class="stats-cell"><div class="sc-label">Excl. MM</div><div class="sc-val" id="s-mm" style="color:var(--muted)">—</div><div class="sc-sub">delta-neutro</div></div>
+          <div class="stats-cell"><div class="sc-label">Sem posição</div><div class="sc-val" id="s-vaz" style="color:var(--muted)">—</div><div class="sc-sub">abaixo do filtro</div></div>
+        </div>
       </div>
+      <div class="side-panel">
+        <div class="side-panel-title">Top ativos — consenso</div>
+        <div id="asset-list"><div class="empty" style="padding:14px 0">—</div></div>
+      </div>
+      <div class="side-panel">
+        <div class="side-panel-title">Excluídos (market maker)</div>
+        <div class="mm-list" id="mm-list"><div class="empty" style="padding:14px 0">—</div></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-alertas -->
+
+  <!-- ══ TAB POSIÇÕES ══ -->
+  <div class="tab-content" id="tab-posicoes">
+    <div class="pos-tab-content" id="pos-tab-content">
+      <div class="empty"><span class="spinner"></span>Carregando posições…</div>
     </div>
   </div>
 
-  <!-- barra long/short -->
-  <div class="longshort-bar">
-    <div class="bar-header">
-      <span class="green">LONG</span>
-      <span style="color:var(--text2);font-size:10px">distribuição ponderada por quality_score</span>
-      <span class="red">SHORT</span>
-    </div>
-    <div class="bar-track">
-      <div class="bar-long" id="bar-long" style="width:50%"></div>
-      <div class="bar-short"></div>
-    </div>
-    <div class="bar-labels">
-      <span class="green" id="bar-long-pct">—</span>
-      <span class="red"   id="bar-short-pct">—</span>
-    </div>
-  </div>
-
-  <!-- feed -->
-  <div class="feed-section">
-    <div class="section-title">Feed de alertas</div>
-    <div class="filter-bar">
-      <button class="filter-btn f-all"  onclick="applyFilter('all',this)">TODOS</button>
-      <button class="filter-btn"        onclick="applyFilter('bullish',this)">BULLISH</button>
-      <button class="filter-btn"        onclick="applyFilter('bearish',this)">BEARISH</button>
-      <button class="filter-btn"        onclick="applyFilter('neutro',this)">NEUTRO</button>
-    </div>
-    <div class="feed-scroll" id="feed">
-      <div class="empty"><span class="spinner"></span>Carregando…</div>
-    </div>
-  </div>
-
-  <!-- sidebar -->
-  <div class="sidebar">
-    <div class="side-panel">
-      <div class="side-panel-title">Snapshot atual</div>
-      <div class="stats-grid">
-        <div class="stats-cell"><div class="sc-label">Coletadas</div><div class="sc-val" id="s-col">—</div><div class="sc-sub">do leaderboard</div></div>
-        <div class="stats-cell"><div class="sc-label">Direcionais</div><div class="sc-val green" id="s-dir">—</div><div class="sc-sub">ativas no sinal</div></div>
-        <div class="stats-cell"><div class="sc-label">Excl. MM</div><div class="sc-val" id="s-mm" style="color:var(--muted)">—</div><div class="sc-sub">delta-neutro</div></div>
-        <div class="stats-cell"><div class="sc-label">Sem posição</div><div class="sc-val" id="s-vaz" style="color:var(--muted)">—</div><div class="sc-sub">abaixo do filtro</div></div>
-      </div>
-    </div>
-    <div class="side-panel">
-      <div class="side-panel-title">Top ativos — consenso</div>
-      <div id="asset-list"><div class="empty" style="padding:16px 0">—</div></div>
-    </div>
-    <div class="side-panel">
-      <div class="side-panel-title">Excluídos (market maker)</div>
-      <div class="mm-list" id="mm-list"><div class="empty" style="padding:16px 0">—</div></div>
-    </div>
-  </div>
 </main>
 
 <script>
 const DATA_URL  = './data/alerts.json';
 const RELOAD_MS = 5 * 60 * 1000;
 
-let allAlerts = [];
+let allAlerts     = [];
 let currentFilter = 'all';
+let whaleFilter   = 'all';
+let openWhales    = new Set();
+let latestData    = null;
 
-function fmt(n) {
-  if (n >= 1e9) return '$'+(n/1e9).toFixed(1)+'B';
-  if (n >= 1e6) return '$'+(n/1e6).toFixed(1)+'M';
-  return '$'+(n/1e3).toFixed(0)+'K';
-}
-function fmtBtc(n) {
-  return '$'+Number(n).toLocaleString('pt-BR');
-}
-function sigColor(s) {
-  return s==='bullish'?'green':s==='bearish'?'red':s==='neutro'?'yellow':'';
-}
-function sigLabel(s) {
-  return s==='bullish'?'BULLISH':s==='bearish'?'BEARISH':s==='neutro'?'NEUTRO':'SEM DADOS';
-}
-function strCls(s) { return s==='forte'?'str-forte':s==='moderado'?'str-mod':'str-fraco'; }
-function strLbl(s) { return s==='forte'?'FORTE':s==='moderado'?'MODERADO':'FRACO'; }
+// ── utils ─────────────────────────────────────────────────────────────────────
+function fmt(n)    { if(n>=1e9)return'$'+(n/1e9).toFixed(1)+'B'; if(n>=1e6)return'$'+(n/1e6).toFixed(1)+'M'; return'$'+(n/1e3).toFixed(0)+'K'; }
+function fmtN(n)   { return n>=1e6?fmt(n):'$'+Number(n).toLocaleString('pt-BR'); }
+function fmtBtc(n) { return'$'+Number(n).toLocaleString('pt-BR'); }
+function fmtPnl(n) { const s=n>=0?'+':''; return s+'$'+Math.abs(n).toLocaleString('pt-BR',{maximumFractionDigits:0}); }
+function sigColor(s){ return s==='bullish'?'green':s==='bearish'?'red':s==='neutro'?'yellow':''; }
+function sigLabel(s){ return s==='bullish'?'BULLISH':s==='bearish'?'BEARISH':s==='neutro'?'NEUTRO':'SEM DADOS'; }
+function strCls(s)  { return s==='forte'?'str-forte':s==='moderado'?'str-mod':'str-fraco'; }
+function strLbl(s)  { return s==='forte'?'FORTE':s==='moderado'?'MODERADO':'FRACO'; }
 
+// ── tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+// ── render alertas ────────────────────────────────────────────────────────────
 function renderTop(a) {
   const card = document.getElementById('signal-card');
   card.className = 'signal-card '+(a.signal||'');
@@ -254,9 +322,7 @@ function renderTop(a) {
   document.getElementById('sig-label').innerHTML = `<span class="${col}">${sigLabel(a.signal)}</span>`;
   document.getElementById('sig-str').innerHTML   = `<strong>${strLbl(a.strength)}</strong> — ${a.dominant_pct.toFixed(1)}% direcionais alinhados`;
   document.getElementById('sig-ts').textContent  = a.timestamp+' UTC';
-  const wEl = document.getElementById('sig-whales');
-  wEl.textContent  = a.active_whales;
-  wEl.className    = 'stat-val '+col;
+  const wEl = document.getElementById('sig-whales'); wEl.textContent=a.active_whales; wEl.className='stat-val '+col;
   document.getElementById('sig-long').textContent   = fmt(a.total_long);
   document.getElementById('sig-short').textContent  = fmt(a.total_short);
   document.getElementById('bar-long').style.width   = a.long_pct+'%';
@@ -273,47 +339,33 @@ function renderTop(a) {
 }
 
 function renderAssets(assets) {
-  if (!assets.length) { document.getElementById('asset-list').innerHTML='<div class="empty" style="padding:14px 0">sem dados</div>'; return; }
-  const maxV = Math.max(...assets.map(a=>a.total_usd));
-  document.getElementById('asset-list').innerHTML = assets.map(a=>{
-    const pct = (a.total_usd/maxV*100).toFixed(0);
-    const col = a.direction==='LONG'?'var(--green)':'var(--red)';
-    const dirPct = a.direction==='LONG'?a.long_pct:a.short_pct;
-    return `<div class="asset-row">
-      <div class="ar-coin">${a.coin}</div>
-      <div class="ar-bar"><div class="ar-fill" style="width:${pct}%;background:${col}"></div></div>
-      <div class="ar-pct" style="color:${col}">${dirPct}%</div>
-      <div class="ar-dir ${a.direction==='LONG'?'dir-l':'dir-s'}">${a.direction}</div>
-    </div>`;
+  if(!assets.length){document.getElementById('asset-list').innerHTML='<div class="empty" style="padding:12px 0">sem dados</div>';return;}
+  const maxV=Math.max(...assets.map(a=>a.total_usd));
+  document.getElementById('asset-list').innerHTML=assets.map(a=>{
+    const pct=(a.total_usd/maxV*100).toFixed(0);
+    const col=a.direction==='LONG'?'var(--green)':'var(--red)';
+    const dp=a.direction==='LONG'?a.long_pct:a.short_pct;
+    return`<div class="asset-row"><div class="ar-coin">${a.coin}</div><div class="ar-bar"><div class="ar-fill" style="width:${pct}%;background:${col}"></div></div><div class="ar-pct" style="color:${col}">${dp}%</div><div class="ar-dir ${a.direction==='LONG'?'dir-l':'dir-s'}">${a.direction}</div></div>`;
   }).join('');
 }
 
 function renderMM(list) {
-  if (!list.length) { document.getElementById('mm-list').innerHTML='<div class="empty" style="padding:14px 0">nenhum excluído</div>'; return; }
-  document.getElementById('mm-list').innerHTML = list.map(m=>
-    `<div class="mm-item">
-      <div class="mm-name">${m.display}</div>
-      <div class="mm-badge">${m.n_pos} pos · ${m.ratio}% neutro</div>
-    </div>`
-  ).join('');
+  if(!list.length){document.getElementById('mm-list').innerHTML='<div class="empty" style="padding:12px 0">nenhum</div>';return;}
+  document.getElementById('mm-list').innerHTML=list.map(m=>`<div class="mm-item"><div class="mm-name">${m.display}</div><div class="mm-badge">${m.n_pos} pos · ${m.ratio}% neutro</div></div>`).join('');
 }
 
 function renderFeed(list) {
-  const feed = document.getElementById('feed');
-  if (!list.length) { feed.innerHTML='<div class="empty">NENHUM ALERTA ENCONTRADO</div>'; return; }
-  feed.innerHTML = list.map((a,idx)=>{
-    const icon    = a.signal==='bullish'?'▲':a.signal==='bearish'?'▼':'◆';
-    const iconCls = a.signal==='bullish'?'icon-bull':a.signal==='bearish'?'icon-bear':a.signal==='neutro'?'icon-neut':'icon-nd';
-    const col = sigColor(a.signal);
-    const pills = (a.assets||[]).slice(0,5).map(x=>{
-      const cls = x.direction==='LONG'?'long-pill':'short-pill';
-      const p   = x.direction==='LONG'?x.long_pct:x.short_pct;
-      return `<div class="asset-pill ${cls}">${x.direction==='LONG'?'↑':'↓'} ${x.coin} ${p}%</div>`;
-    }).join('');
-    return `<div class="alert-card ${a.signal}" style="animation-delay:${idx*.04}s">
+  const feed=document.getElementById('feed');
+  if(!list.length){feed.innerHTML='<div class="empty">NENHUM ALERTA ENCONTRADO</div>';return;}
+  feed.innerHTML=list.map((a,idx)=>{
+    const icon=a.signal==='bullish'?'▲':a.signal==='bearish'?'▼':'◆';
+    const icls=a.signal==='bullish'?'icon-bull':a.signal==='bearish'?'icon-bear':a.signal==='neutro'?'icon-neut':'icon-nd';
+    const col=sigColor(a.signal);
+    const pills=(a.assets||[]).slice(0,5).map(x=>{const cls=x.direction==='LONG'?'long-pill':'short-pill';const p=x.direction==='LONG'?x.long_pct:x.short_pct;return`<div class="asset-pill ${cls}">${x.direction==='LONG'?'↑':'↓'} ${x.coin} ${p}%</div>`;}).join('');
+    return`<div class="alert-card ${a.signal}" style="animation-delay:${idx*.04}s">
       <div class="card-top">
         <div class="card-signal">
-          <div class="card-signal-icon ${iconCls}">${icon}</div>
+          <div class="card-signal-icon ${icls}">${icon}</div>
           <div class="card-signal-name ${col}">${sigLabel(a.signal)}</div>
           ${idx===0?'<span class="new-badge">NOVO</span>':''}
           <span class="card-strength ${strCls(a.strength)}">${strLbl(a.strength)}</span>
@@ -330,34 +382,230 @@ function renderFeed(list) {
   }).join('');
 }
 
-function applyFilter(type, btn) {
-  currentFilter = type;
-  document.querySelectorAll('.filter-btn').forEach(b=>{
-    b.className = 'filter-btn';
-    if (b===btn) b.classList.add(type==='all'?'f-all':type==='bullish'?'f-bull':type==='bearish'?'f-bear':'f-neut');
-  });
+function applyFilter(type,btn){
+  currentFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(b=>{b.className='filter-btn';});
+  btn.classList.add(type==='all'?'f-all':type==='bullish'?'f-bull':type==='bearish'?'f-bear':'f-neut');
   renderFeed(type==='all'?allAlerts:allAlerts.filter(a=>a.signal===type));
 }
 
+// ── render posições ───────────────────────────────────────────────────────────
+function buildCopyText(whale) {
+  const ts = latestData ? latestData.timestamp : '';
+  let lines = [];
+  lines.push(`=== ${whale.display} | Q-Score: ${whale.quality_score} | ${ts} UTC ===`);
+  lines.push(`Bias: ${whale.bias} | Notional: ${fmtN(whale.total_notional)} | Posições: ${whale.n_positions}`);
+  lines.push('');
+  lines.push('ATIVO     LADO   TAMANHO      NOTIONAL       ENTRADA        PNL');
+  lines.push('─'.repeat(70));
+  (whale.positions||[]).forEach(p=>{
+    const coin   = p.coin.padEnd(8);
+    const side   = p.side.padEnd(6);
+    const size   = p.size.toFixed(4).padStart(12);
+    const not    = fmtN(p.notional).padStart(14);
+    const entry  = ('$'+p.entry.toLocaleString('pt-BR',{minimumFractionDigits:2})).padStart(14);
+    const pnl    = (p.pnl>=0?'+':'')+fmtN(Math.abs(p.pnl)).padStart(12);
+    lines.push(`${coin} ${side} ${size} ${not} ${entry} ${pnl}`);
+  });
+  return lines.join('\n');
+}
+
+function buildCopyAllText(whales) {
+  const ts = latestData ? latestData.timestamp : '';
+  let lines = [];
+  lines.push(`🐋 WHALE TRACKER — POSIÇÕES COMPLETAS | ${ts} UTC`);
+  lines.push(`Sinal: ${latestData ? sigLabel(latestData.signal) : '—'} | BTC: ${latestData ? fmtBtc(latestData.btc_price) : '—'}`);
+  lines.push('═'.repeat(72));
+  whales.forEach((w,i)=>{
+    lines.push('');
+    lines.push(`#${i+1} ${w.display} [Q=${w.quality_score}] — ${w.bias} — ${fmtN(w.total_notional)}`);
+    (w.positions||[]).forEach(p=>{
+      const pnlStr = (p.pnl>=0?'+':'')+fmtN(Math.abs(p.pnl));
+      lines.push(`  ${p.side.padEnd(6)} ${p.coin.padEnd(7)} ${fmtN(p.notional).padStart(12)}  entrada $${p.entry.toFixed(2)}  pnl ${pnlStr}`);
+    });
+  });
+  return lines.join('\n');
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.classList.add('copied');
+    const prev = btn.innerHTML;
+    btn.innerHTML = '✓ COPIADO';
+    setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML=prev; }, 2000);
+  }).catch(()=>{
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.classList.add('copied');
+    const prev=btn.innerHTML; btn.innerHTML='✓ COPIADO';
+    setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML=prev; },2000);
+  });
+}
+
+function renderPosTab(data) {
+  const whales = data.whale_positions || [];
+  const wrap   = document.getElementById('pos-tab-content');
+  if (!whales.length) {
+    wrap.innerHTML = '<div class="empty">Nenhuma posição disponível.<br>Execute python run_once.py para gerar dados.</div>';
+    return;
+  }
+
+  // filtrar
+  const filtered = whaleFilter==='all' ? whales : whales.filter(w=>w.bias===whaleFilter.toUpperCase());
+
+  // resumo geral
+  const totalLong  = whales.reduce((s,w)=>s+w.long_notional,0);
+  const totalShort = whales.reduce((s,w)=>s+w.short_notional,0);
+  const topCoinMap = {};
+  whales.forEach(w=>(w.positions||[]).forEach(p=>{
+    if(!topCoinMap[p.coin]) topCoinMap[p.coin]={long:0,short:0,count:0};
+    if(p.side==='LONG') topCoinMap[p.coin].long+=p.notional;
+    else topCoinMap[p.coin].short+=p.notional;
+    topCoinMap[p.coin].count++;
+  }));
+  const topCoin = Object.entries(topCoinMap).sort((a,b)=>(b[1].long+b[1].short)-(a[1].long+a[1].short))[0];
+
+  const copyAllId = 'copy-all-btn';
+  const copyAllText = buildCopyAllText(filtered);
+
+  wrap.innerHTML = `
+    <div class="summary-grid">
+      <div class="sum-card"><div class="sum-label">BALEIAS COM POSIÇÃO</div><div class="sum-val">${whales.length}</div><div class="sum-sub">direcionais ativas</div></div>
+      <div class="sum-card"><div class="sum-label">TOTAL LONG</div><div class="sum-val green">${fmt(totalLong)}</div><div class="sum-sub">notional agregado</div></div>
+      <div class="sum-card"><div class="sum-label">TOTAL SHORT</div><div class="sum-val red">${fmt(totalShort)}</div><div class="sum-sub">notional agregado</div></div>
+      <div class="sum-card"><div class="sum-label">ATIVO MAIS NEGOCIADO</div><div class="sum-val">${topCoin?topCoin[0]:'—'}</div><div class="sum-sub">${topCoin?topCoin[1].count+' baleias':''}</div></div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 0">
+      <div class="section-title" style="margin:0;min-width:120px">Posições individuais</div>
+      <div class="whale-filter">
+        <button class="wf-btn wf-all" onclick="wFilter('all',this)">TODAS</button>
+        <button class="wf-btn" onclick="wFilter('long',this)">SÓ LONG</button>
+        <button class="wf-btn" onclick="wFilter('short',this)">SÓ SHORT</button>
+      </div>
+      <button class="copy-all-btn" id="${copyAllId}" onclick="copyText(buildCopyAllText(getFilteredWhales()), this)">⎘ COPIAR TUDO</button>
+    </div>
+
+    ${filtered.map((w,i)=>{
+      const isOpen = openWhales.has(w.display);
+      const posRows = (w.positions||[]).map(p=>{
+        const sideCls = p.side==='LONG'?'side-long':'side-short';
+        const pnlCls  = p.pnl>=0?'pnl-pos':'pnl-neg';
+        const lev     = p.leverage>0?`${p.leverage.toFixed(1)}x`:'—';
+        return`<tr>
+          <td><strong style="color:var(--text)">${p.coin}</strong></td>
+          <td class="${sideCls}">${p.side}</td>
+          <td class="r">${p.size.toFixed(4)}</td>
+          <td class="r">${fmtN(p.notional)}</td>
+          <td class="r">$${p.entry.toFixed(2)}</td>
+          <td class="r ${pnlCls}">${fmtPnl(p.pnl)}</td>
+          <td class="r" style="color:var(--muted)">${lev}</td>
+        </tr>`;
+      }).join('');
+
+      const copyTxt = buildCopyText(w);
+      const biasCls = w.bias==='LONG'?'bias-long':'bias-short';
+
+      return`<div class="whale-card">
+        <div class="whale-header${isOpen?' open':''}" onclick="toggleWhale('${w.display.replace(/'/g,"\\'")}',this)">
+          <div class="wh-left">
+            <div class="wh-rank">#${i+1}</div>
+            <div class="wh-name">${w.display}</div>
+            <div class="wh-qs">Q ${w.quality_score}</div>
+            <div class="wh-bias ${biasCls}">${w.bias}</div>
+          </div>
+          <div class="wh-right">
+            <div class="wh-notional">
+              <span style="color:var(--green)">L ${fmt(w.long_notional)}</span>
+              <span style="color:var(--muted)"> / </span>
+              <span style="color:var(--red)">S ${fmt(w.short_notional)}</span>
+              <span style="color:var(--muted)"> · </span>
+              <strong>${w.n_positions} pos</strong>
+            </div>
+            <div class="wh-chevron${isOpen?' open':''}">▼</div>
+          </div>
+        </div>
+        <div class="pos-table-wrap" style="display:${isOpen?'block':'none'}">
+          <table class="pos-table">
+            <thead><tr>
+              <th>Ativo</th><th>Lado</th><th class="r">Tamanho</th>
+              <th class="r">Notional</th><th class="r">Entrada</th>
+              <th class="r">PnL</th><th class="r">Lev.</th>
+            </tr></thead>
+            <tbody>${posRows}</tbody>
+          </table>
+          <div class="copy-block">
+            <div class="copy-header">
+              <div class="copy-label">TEXTO PARA COLAR</div>
+              <button class="copy-btn" onclick="copyText(buildCopyTextByName('${w.display.replace(/'/g,"\\'")}'),this)">⎘ COPIAR</button>
+            </div>
+            <div class="copy-text">${escHtml(copyTxt)}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toggleWhale(name, headerEl) {
+  const card  = headerEl.closest('.whale-card');
+  const body  = card.querySelector('.pos-table-wrap');
+  const chev  = headerEl.querySelector('.wh-chevron');
+  const isOpen= body.style.display==='block';
+  body.style.display = isOpen ? 'none' : 'block';
+  chev.classList.toggle('open', !isOpen);
+  headerEl.classList.toggle('open', !isOpen);
+  if(isOpen) openWhales.delete(name); else openWhales.add(name);
+}
+
+function getFilteredWhales() {
+  if(!latestData) return [];
+  const whales = latestData.whale_positions||[];
+  return whaleFilter==='all'?whales:whales.filter(w=>w.bias===whaleFilter.toUpperCase());
+}
+
+function buildCopyTextByName(name) {
+  if(!latestData) return '';
+  const w=(latestData.whale_positions||[]).find(x=>x.display===name);
+  return w?buildCopyText(w):'';
+}
+
+function wFilter(type,btn){
+  whaleFilter=type;
+  document.querySelectorAll('.wf-btn').forEach(b=>{b.className='wf-btn';});
+  btn.classList.add(type==='all'?'wf-all':type==='long'?'wf-long':'wf-short');
+  if(latestData) renderPosTab(latestData);
+}
+
+// ── fetch ─────────────────────────────────────────────────────────────────────
 async function loadData() {
   const dot = document.getElementById('live-dot');
   try {
     const r = await fetch(DATA_URL+'?t='+Date.now());
-    if (!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
-    if (!Array.isArray(data)||!data.length) throw new Error('vazio');
-    allAlerts = data;
+    if(!Array.isArray(data)||!data.length) throw new Error('vazio');
+
+    allAlerts  = data;
+    latestData = data[0];
+
     renderTop(data[0]);
     renderFeed(currentFilter==='all'?allAlerts:allAlerts.filter(a=>a.signal===currentFilter));
-    dot.textContent = 'AO VIVO';
-    dot.className = 'live-dot';
+    renderPosTab(data[0]);
+
+    dot.textContent='AO VIVO'; dot.className='live-dot';
   } catch(e) {
-    dot.textContent = 'OFFLINE';
-    dot.className = 'live-dot offline';
-    if (!allAlerts.length) {
-      document.getElementById('feed').innerHTML =
-        `<div class="empty">data/alerts.json não encontrado<br>Execute: <span style="color:var(--blue)">python run_once.py</span><br>para gerar os dados</div>`;
-      document.getElementById('sig-label').textContent = '—';
+    dot.textContent='OFFLINE'; dot.className='live-dot offline';
+    if(!allAlerts.length){
+      document.getElementById('feed').innerHTML=`<div class="empty">data/alerts.json não encontrado<br>Execute: <span style="color:var(--blue)">python run_once.py</span></div>`;
+      document.getElementById('pos-tab-content').innerHTML=`<div class="empty">Sem dados.<br>Execute: <span style="color:var(--blue)">python run_once.py</span></div>`;
+      document.getElementById('sig-label').textContent='—';
     }
   }
 }
