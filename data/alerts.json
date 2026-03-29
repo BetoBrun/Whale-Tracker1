@@ -1,0 +1,95 @@
+[
+  {
+    "timestamp": "2026-03-29 03:33:26",
+    "signal": "bearish",
+    "strength": "forte",
+    "dominant_pct": 81.16,
+    "long_pct": 18.84,
+    "short_pct": 81.16,
+    "total_long": 88860369.0,
+    "total_short": 389666927.0,
+    "active_whales": 32,
+    "btc_price": 66934.5,
+    "collected": 100,
+    "excluded_mm": 2,
+    "sem_posicao": 66,
+    "assets": [
+      {
+        "coin": "BTC",
+        "direction": "SHORT",
+        "long_pct": 21.0,
+        "short_pct": 79.0,
+        "total_usd": 199999132.0,
+        "conviction": "🔥 FORTE"
+      },
+      {
+        "coin": "HYPE",
+        "direction": "SHORT",
+        "long_pct": 30.4,
+        "short_pct": 69.6,
+        "total_usd": 102436965.0,
+        "conviction": "🟡 MODERADO"
+      },
+      {
+        "coin": "ETH",
+        "direction": "SHORT",
+        "long_pct": 1.0,
+        "short_pct": 99.0,
+        "total_usd": 101499730.0,
+        "conviction": "🔥 FORTE"
+      },
+      {
+        "coin": "XMR",
+        "direction": "SHORT",
+        "long_pct": 0.0,
+        "short_pct": 100.0,
+        "total_usd": 7043398.0,
+        "conviction": "🔥 FORTE"
+      },
+      {
+        "coin": "TAO",
+        "direction": "SHORT",
+        "long_pct": 0.0,
+        "short_pct": 100.0,
+        "total_usd": 6976140.0,
+        "conviction": "🔥 FORTE"
+      },
+      {
+        "coin": "SOL",
+        "direction": "SHORT",
+        "long_pct": 31.2,
+        "short_pct": 68.8,
+        "total_usd": 6592303.0,
+        "conviction": "🟡 MODERADO"
+      },
+      {
+        "coin": "LIT",
+        "direction": "SHORT",
+        "long_pct": 21.8,
+        "short_pct": 78.2,
+        "total_usd": 6373198.0,
+        "conviction": "🔥 FORTE"
+      },
+      {
+        "coin": "FARTCOIN",
+        "direction": "SHORT",
+        "long_pct": 0.5,
+        "short_pct": 99.5,
+        "total_usd": 5849325.0,
+        "conviction": "🔥 FORTE"
+      }
+    ],
+    "excluded_mm_list": [
+      {
+        "display": "Auros",
+        "ratio": 56.5,
+        "n_pos": 94
+      },
+      {
+        "display": "0x4a9603…",
+        "ratio": 56.8,
+        "n_pos": 16
+      }
+    ]
+  }
+]
