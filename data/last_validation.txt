@@ -1,0 +1,15 @@
+
+🐋 Quick Validate — 2026-03-29 05:29 UTC
+   Total snapshots : 6
+   Direcionais     : 6
+   Com resultado   : 0
+   Taxa de acerto  : 0.0%
+
+  ⚠️  Amostra muito pequena (0/30).
+
+  📐 Progresso:
+     ⏳   30  [░░░░░░░░░░░░░░░░░░░░] 0%
+     ⏳  100  [░░░░░░░░░░░░░░░░░░░░] 0%
+     ⏳  200  [░░░░░░░░░░░░░░░░░░░░] 0%
+     ⏳  300  [░░░░░░░░░░░░░░░░░░░░] 0%
+     ⏳ Para 300: ~50.0 dias
