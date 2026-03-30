@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# ╔══════════════════════════════════════════════════════════════╗
+# ║ 🐋 WHALE TRACKER — SCRIPT PRINCIPAL                        ║
+# ╚══════════════════════════════════════════════════════════════╝
+
 import sys
 import time
 import logging
@@ -18,7 +22,7 @@ from whale_signal import compute_signal
 from storage import load_csv, save_snapshot, enrich_snapshots, snapshot_stats
 from dashboard import plot_snapshot
 from telegram_notifier import notify_if_needed, telegram_configured
-from alerts_writer import write_alert  # <-- integração página de alertas
+from alerts_writer import write_alert
 
 log_file = LOG_DIR / f"tracker_{datetime.utcnow():%Y%m%d}.log"
 logging.basicConfig(
@@ -31,6 +35,10 @@ logging.basicConfig(
 )
 log = logging.getLogger("whale")
 
+
+# ══════════════════════════════════════════════════════════════
+# COLETA DE SNAPSHOT
+# ══════════════════════════════════════════════════════════════
 
 def take_snapshot() -> tuple:
     ts    = datetime.utcnow()
@@ -48,29 +56,45 @@ def take_snapshot() -> tuple:
             import pandas as pd
             pos_df = pd.DataFrame()
 
+        # ── passa TODOS os campos de performance para all_pos ──────────────
+        # O alerts_writer.py precisa desses campos para calcular
+        # consistency_score, pnl_month, pnl_week, etc por baleia.
         all_pos.append({
-            "display":       row["display"],
-            "address":       row["address"],
-            "quality_score": row["quality_score"],
-            "positions":     pos_df,
+            "display":            row["display"],
+            "address":            row["address"],
+            "quality_score":      row["quality_score"],
+            "consistency_score":  row.get("consistency_score", 0),
+            "pnl_month":          row.get("pnl_month", 0),
+            "pnl_week":           row.get("pnl_week", 0),
+            "pnl_day":            row.get("pnl_day", 0),
+            "pnl_quarter":        row.get("pnl_quarter", 0),
+            "quarter_estimated":  row.get("quarter_estimated", True),
+            "roi_month":          row.get("roi_month", 0),
+            "roi_week":           row.get("roi_week", 0),
+            "roi_quarter":        row.get("roi_quarter", 0),
+            "positions":          pos_df,
         })
 
     sig = compute_signal(all_pos, lb)
     snap = {
-        "timestamp":      ts.strftime("%Y-%m-%d %H:%M:%S"),
-        "btc_price_t0":   price,
-        "signal":         sig["signal"],
-        "long_pct":       sig["long_pct"],
-        "short_pct":      sig["short_pct"],
-        "total_long":     sig["total_long"],
-        "total_short":    sig["total_short"],
-        "active_whales":  sig["active_whales"],
-        "btc_price_t4":   None,
-        "retorno_pct":    None,
-        "resultado":      None,
+        "timestamp":     ts.strftime("%Y-%m-%d %H:%M:%S"),
+        "btc_price_t0":  price,
+        "signal":        sig["signal"],
+        "long_pct":      sig["long_pct"],
+        "short_pct":     sig["short_pct"],
+        "total_long":    sig["total_long"],
+        "total_short":   sig["total_short"],
+        "active_whales": sig["active_whales"],
+        "btc_price_t4":  None,
+        "retorno_pct":   None,
+        "resultado":     None,
     }
     return snap, sig, all_pos, lb
 
+
+# ══════════════════════════════════════════════════════════════
+# PRINT RESUMO
+# ══════════════════════════════════════════════════════════════
 
 def print_summary(snap: dict, sig: dict, all_pos: list, lb):
     emoji = {"BULLISH": "🟢", "BEARISH": "🔴", "NEUTRO": "🟡",
@@ -81,12 +105,14 @@ def print_summary(snap: dict, sig: dict, all_pos: list, lb):
     print(f" 🐋 WHALE TRACKER | {snap['timestamp']} UTC")
     print("═" * 65)
 
-    lb_show = lb[["display", "pnl_all", "pnl_month", "quality_score"]].copy()
+    lb_show = lb[["display", "pnl_all", "pnl_month", "quality_score",
+                  "consistency_score"]].copy()
     lb_show.index += 1
-    lb_show.columns = ["Trader", "PnL All-Time", "PnL 30d", "Q-Score"]
+    lb_show.columns = ["Trader", "PnL All-Time", "PnL 30d", "Q-Score", "CS-Score"]
     lb_show["PnL All-Time"] = lb_show["PnL All-Time"].apply(lambda x: f"${x:>12,.0f}")
     lb_show["PnL 30d"]      = lb_show["PnL 30d"].apply(lambda x: f"${x:>10,.0f}")
     lb_show["Q-Score"]      = lb_show["Q-Score"].apply(lambda x: f"{x:.3f}")
+    lb_show["CS-Score"]     = lb_show["CS-Score"].apply(lambda x: f"{x:.1f}")
     print(f"\n🏆 TOP {len(lb)} BALEIAS\n")
     print(tabulate(lb_show, headers="keys", tablefmt="rounded_outline"))
 
@@ -106,7 +132,8 @@ def print_summary(snap: dict, sig: dict, all_pos: list, lb):
             continue
         has_pos = True
         qs = entry.get("quality_score", 0)
-        print(f"  👤 {entry['display']} [Q={qs:.3f}]")
+        cs = entry.get("consistency_score", 0)
+        print(f"  👤 {entry['display']} [Q={qs:.3f} | CS={cs:.0f}]")
         print(tabulate(entry["positions"], headers="keys",
                        tablefmt="simple", showindex=False, floatfmt=".2f"))
         print()
@@ -154,6 +181,10 @@ def print_summary(snap: dict, sig: dict, all_pos: list, lb):
     print("═" * 65 + "\n")
 
 
+# ══════════════════════════════════════════════════════════════
+# JOB PRINCIPAL
+# ══════════════════════════════════════════════════════════════
+
 def run_job(save_plot: bool = True):
     log.info("━" * 50)
     log.info("🐋 Iniciando coleta…")
@@ -168,7 +199,7 @@ def run_job(save_plot: bool = True):
 
         snap, sig, all_pos, lb = take_snapshot()
         save_snapshot(snap)
-        write_alert(snap, sig, all_pos)  # <-- grava data/alerts.json
+        write_alert(snap, sig, all_pos)   # grava alerts.json com consistency_score
         print_summary(snap, sig, all_pos, lb)
 
         if save_plot:
@@ -193,7 +224,12 @@ def run_job(save_plot: bool = True):
         log.error(f"  ❌ Erro no job: {e}", exc_info=True)
 
 
-def start_scheduler(interval_hours: int = COLLECT_INTERVAL_H, run_now: bool = True):
+# ══════════════════════════════════════════════════════════════
+# SCHEDULER
+# ══════════════════════════════════════════════════════════════
+
+def start_scheduler(interval_hours: int = COLLECT_INTERVAL_H,
+                    run_now: bool = True):
     if run_now:
         run_job()
     interval_sec = interval_hours * 3600
@@ -210,12 +246,19 @@ def start_scheduler(interval_hours: int = COLLECT_INTERVAL_H, run_now: bool = Tr
     return t
 
 
+# ══════════════════════════════════════════════════════════════
+# ENTRY POINT
+# ══════════════════════════════════════════════════════════════
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="🐋 Hyperliquid Whale Tracker")
-    parser.add_argument("--once",     action="store_true", help="Roda um snapshot e sai")
-    parser.add_argument("--interval", type=int, default=COLLECT_INTERVAL_H)
-    parser.add_argument("--no-plot",  action="store_true", help="Não salva gráfico")
+    parser.add_argument("--once",     action="store_true",
+                        help="Roda um snapshot e sai")
+    parser.add_argument("--interval", type=int, default=COLLECT_INTERVAL_H,
+                        help=f"Intervalo em horas (padrão: {COLLECT_INTERVAL_H})")
+    parser.add_argument("--no-plot",  action="store_true",
+                        help="Não salva gráfico")
     args = parser.parse_args()
 
     if args.once:
