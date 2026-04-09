@@ -1,0 +1,57 @@
+{
+  "generated_at": "2026-04-09T00:00:00Z",
+  "status": "placeholder",
+  "reason": "fallback inicial",
+  "market_score": {
+    "total_score": 0,
+    "bias": "NEUTRO",
+    "components": {
+      "funding": {
+        "score": 0,
+        "value": 0.0
+      },
+      "long_short": {
+        "score": 0,
+        "value": 1.0
+      },
+      "liquidations": {
+        "score": 0,
+        "long_usd": 0,
+        "short_usd": 0
+      },
+      "spot_flow": {
+        "score": 0,
+        "basis": 0.0
+      },
+      "options": {
+        "score": 0,
+        "put_call_ratio": 1.0
+      }
+    }
+  },
+  "binance": {
+    "BTC": {
+      "funding_rate": 0.0
+    }
+  },
+  "spot_flows": {
+    "BTC": {
+      "basis": 0.0
+    }
+  },
+  "liquidations": {
+    "BTC": {
+      "long_liq_usd": 0,
+      "short_liq_usd": 0
+    }
+  },
+  "options": {
+    "call_pct": 50,
+    "put_pct": 50
+  },
+  "hl_summary": {
+    "directional_whales": 0,
+    "excluded_mm": 0,
+    "excluded_delta_neutral": 0
+  }
+}

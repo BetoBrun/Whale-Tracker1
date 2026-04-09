@@ -1,214 +1,51 @@
 {
-  "timestamp": "2026-04-09 18:49:54",
-  "status": "fallback",
-  "message": "Deribit/Binance indisponíveis; exibindo fallback estático",
-  "source": "static_fallback",
+  "generated_at": "2026-04-09T00:00:00Z",
   "BTC": {
-    "spot_price": 72000,
-    "total_call_oi": 12000.0,
-    "total_put_oi": 15000.0,
-    "put_call_ratio": 1.25,
-    "call_pct": 44.4,
-    "put_pct": 55.6,
-    "next_expiry": "NEXT",
-    "next_max_pain": 70000,
+    "spot_price": 0,
+    "next_max_pain": 0,
     "by_expiry": {
-      "NEXT": {
-        "expiry": "NEXT",
-        "total_call_oi": 4200.0,
-        "total_put_oi": 5600.0,
-        "total_oi": 9800.0,
-        "put_call_ratio": 1.33,
-        "call_pct": 42.9,
-        "put_pct": 57.1,
-        "max_pain": 70000,
-        "max_pain_dist": -2.8,
-        "total_gex": 12500000,
-        "gex_regime": "POSITIVO",
-        "vol_skew": 4.2,
-        "skew_signal": "MEDO",
-        "top_strikes": [
-          {
-            "strike": 68000,
-            "oi": 1700.0
-          },
-          {
-            "strike": 70000,
-            "oi": 2400.0
-          },
-          {
-            "strike": 72000,
-            "oi": 2100.0
-          },
-          {
-            "strike": 75000,
-            "oi": 1600.0
-          }
-        ],
-        "nearby_strikes": [
-          {
-            "strike": 68000,
-            "call_oi": 800.0,
-            "put_oi": 900.0,
-            "call_iv": 58.0,
-            "put_iv": 63.0,
-            "gex": 2200000.0,
-            "dist_pct": -5.6
-          },
-          {
-            "strike": 70000,
-            "call_oi": 1100.0,
-            "put_oi": 1300.0,
-            "call_iv": 57.0,
-            "put_iv": 62.0,
-            "gex": 4100000.0,
-            "dist_pct": -2.8
-          },
-          {
-            "strike": 72000,
-            "call_oi": 1200.0,
-            "put_oi": 900.0,
-            "call_iv": 56.0,
-            "put_iv": 59.0,
-            "gex": 3600000.0,
-            "dist_pct": 0.0
-          },
-          {
-            "strike": 75000,
-            "call_oi": 900.0,
-            "put_oi": 700.0,
-            "call_iv": 55.0,
-            "put_iv": 58.0,
-            "gex": 1800000.0,
-            "dist_pct": 4.2
-          }
-        ],
-        "gex_support": [
-          {
-            "strike": 70000,
-            "gex": 4100000.0
-          },
-          {
-            "strike": 72000,
-            "gex": 3600000.0
-          }
-        ],
-        "gex_resistance": [
-          {
-            "strike": 75000,
-            "gex": -1900000.0
-          },
-          {
-            "strike": 78000,
-            "gex": -1200000.0
-          }
-        ],
-        "strikes_count": 18
+      "16APR26": {
+        "max_pain": 0,
+        "max_pain_dist": 0.0,
+        "gex_regime": "NEUTRO",
+        "vol_skew": 0.0,
+        "skew_signal": "NEUTRO",
+        "put_call_ratio": 1.0,
+        "call_wall": 0,
+        "put_wall": 0,
+        "dealer_hedge_low": 0,
+        "dealer_hedge_high": 0,
+        "oi_calls": [],
+        "oi_puts": [],
+        "gex_calls": [],
+        "gex_puts": []
       }
-    }
+    },
+    "status": "placeholder",
+    "reason": "fallback inicial"
   },
   "ETH": {
-    "spot_price": 3600,
-    "total_call_oi": 18000.0,
-    "total_put_oi": 14000.0,
-    "put_call_ratio": 0.78,
-    "call_pct": 56.2,
-    "put_pct": 43.8,
-    "next_expiry": "NEXT",
-    "next_max_pain": 3500,
+    "spot_price": 0,
+    "next_max_pain": 0,
     "by_expiry": {
-      "NEXT": {
-        "expiry": "NEXT",
-        "total_call_oi": 6200.0,
-        "total_put_oi": 4800.0,
-        "total_oi": 11000.0,
-        "put_call_ratio": 0.77,
-        "call_pct": 56.4,
-        "put_pct": 43.6,
-        "max_pain": 3500,
-        "max_pain_dist": -2.8,
-        "total_gex": -6200000,
-        "gex_regime": "NEGATIVO",
-        "vol_skew": 1.1,
+      "16APR26": {
+        "max_pain": 0,
+        "max_pain_dist": 0.0,
+        "gex_regime": "NEUTRO",
+        "vol_skew": 0.0,
         "skew_signal": "NEUTRO",
-        "top_strikes": [
-          {
-            "strike": 3400,
-            "oi": 2100.0
-          },
-          {
-            "strike": 3500,
-            "oi": 2600.0
-          },
-          {
-            "strike": 3600,
-            "oi": 2300.0
-          },
-          {
-            "strike": 3800,
-            "oi": 1800.0
-          }
-        ],
-        "nearby_strikes": [
-          {
-            "strike": 3400,
-            "call_oi": 900.0,
-            "put_oi": 1200.0,
-            "call_iv": 64.0,
-            "put_iv": 66.0,
-            "gex": 1200000.0,
-            "dist_pct": -5.6
-          },
-          {
-            "strike": 3500,
-            "call_oi": 1200.0,
-            "put_oi": 1400.0,
-            "call_iv": 63.0,
-            "put_iv": 65.0,
-            "gex": 1700000.0,
-            "dist_pct": -2.8
-          },
-          {
-            "strike": 3600,
-            "call_oi": 1400.0,
-            "put_oi": 900.0,
-            "call_iv": 62.0,
-            "put_iv": 63.0,
-            "gex": -2100000.0,
-            "dist_pct": 0.0
-          },
-          {
-            "strike": 3800,
-            "call_oi": 1300.0,
-            "put_oi": 500.0,
-            "call_iv": 61.0,
-            "put_iv": 61.0,
-            "gex": -2400000.0,
-            "dist_pct": 5.6
-          }
-        ],
-        "gex_support": [
-          {
-            "strike": 3500,
-            "gex": 1700000.0
-          },
-          {
-            "strike": 3400,
-            "gex": 1200000.0
-          }
-        ],
-        "gex_resistance": [
-          {
-            "strike": 3800,
-            "gex": -2400000.0
-          },
-          {
-            "strike": 3600,
-            "gex": -2100000.0
-          }
-        ],
-        "strikes_count": 20
+        "put_call_ratio": 1.0,
+        "call_wall": 0,
+        "put_wall": 0,
+        "dealer_hedge_low": 0,
+        "dealer_hedge_high": 0,
+        "oi_calls": [],
+        "oi_puts": [],
+        "gex_calls": [],
+        "gex_puts": []
       }
-    }
+    },
+    "status": "placeholder",
+    "reason": "fallback inicial"
   }
 }
