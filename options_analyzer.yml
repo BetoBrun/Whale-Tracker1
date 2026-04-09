@@ -1,12 +1,12 @@
-name: Spike Monitor (10min)
+name: Options Analyzer (1h)
 
 on:
   schedule:
-    - cron: "0,10,20,30,40,50 * * * *"
+    - cron: "30 * * * *"   # roda nos :30 de cada hora
   workflow_dispatch:
 
 jobs:
-  spike-check:
+  options:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,16 +25,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run spike monitor
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python spike_monitor.py
+      - name: Run options analyzer
+        run: python options_analyzer.py
 
-      - name: Commit spike data
+      - name: Commit options data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/spike_alerts.json data/spike_state.json || true
-          git diff --cached --quiet || git commit -m "spike: $(date -u +'%H:%M') UTC"
-          git push || true
+          git add data/options_data.json || true
+          git diff --cached --quiet || git commit -m "options: $(date -u +'%H:%M') UTC"
+          git push
