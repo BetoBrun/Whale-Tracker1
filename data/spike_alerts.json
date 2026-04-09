@@ -1,5 +1,20 @@
 [
   {
+    "id": "2026-04-09 22:24:30_0",
+    "type": "SPIKE_SHORT",
+    "display": "0xd4c1f7…",
+    "qs": 0.886,
+    "coin": "BTC",
+    "side": "SHORT",
+    "notional": 9326793.688752,
+    "prev_notional": 7412750.687341999,
+    "delta_pct": 25.8,
+    "entry_px": 72305.3,
+    "ts": "2026-04-09 22:24:30",
+    "btc": 72778.5,
+    "severity": "alta"
+  },
+  {
     "id": "2026-04-09 21:31:59_0",
     "type": "SIDE_FLIP",
     "display": "0xecb63c…",
