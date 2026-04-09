@@ -1,5 +1,33 @@
 [
   {
+    "id": "2026-04-09 21:31:59_0",
+    "type": "SIDE_FLIP",
+    "display": "0xecb63c…",
+    "qs": 0.899,
+    "coin": "ZEC",
+    "side": "LONG",
+    "prev_side": "SHORT",
+    "notional": 35009.84997,
+    "ts": "2026-04-09 21:31:59",
+    "btc": 72153.5,
+    "severity": "alta"
+  },
+  {
+    "id": "2026-04-09 21:31:59_1",
+    "type": "SPIKE_SHORT",
+    "display": "0xd4c1f7…",
+    "qs": 0.886,
+    "coin": "BTC",
+    "side": "SHORT",
+    "notional": 7412750.687341999,
+    "prev_notional": 4134845.4617489995,
+    "delta_pct": 79.3,
+    "entry_px": 72272.2,
+    "ts": "2026-04-09 21:31:59",
+    "btc": 72153.5,
+    "severity": "alta"
+  },
+  {
     "id": "2026-04-09 20:37:03_0",
     "type": "SPIKE_SHORT",
     "display": "0xd4c1f7…",
