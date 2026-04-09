@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yield Lab PRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#060910;--surface:#0b0f17;--panel:#0f1520;--panel2:#141c28;--border:#1a2538;--border2:#223045;--green:#00e5a0;--red:#ff4060;--yellow:#f5c518;--blue:#3d9cf0;--purple:#a78bfa;--orange:#fb923c;--gold:#fbbf24;--muted:#3d5269;--text:#c8d8e8;--text2:#6a8aa0;--mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px}
+
+/* ── LOGIN GATE ── */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.gate-card{background:var(--panel);border:1px solid var(--border2);border-radius:16px;padding:40px 48px;width:380px;text-align:center;position:relative;overflow:hidden}
+.gate-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),var(--blue),var(--green))}
+.gate-logo{width:48px;height:48px;background:linear-gradient(135deg,var(--purple),var(--blue));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px}
+.gate-title{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.06em;color:var(--text);margin-bottom:4px}
+.gate-sub{font-size:12px;color:var(--text2);margin-bottom:28px;line-height:1.6}
+.gate-input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:12px 16px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;text-align:center;letter-spacing:.1em;transition:border-color .2s}
+.gate-input:focus{border-color:var(--purple)}
+.gate-btn{width:100%;margin-top:12px;background:linear-gradient(135deg,var(--purple),var(--blue));border:none;border-radius:8px;padding:12px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.08em;color:#fff;cursor:pointer;transition:opacity .2s}
+.gate-btn:hover{opacity:.85}
+.gate-err{font-family:var(--mono);font-size:11px;color:var(--red);margin-top:8px;min-height:18px}
+.gate-features{margin-top:24px;text-align:left;display:flex;flex-direction:column;gap:7px}
+.gate-feat{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.gate-feat::before{content:'✓';color:var(--green);font-family:var(--mono);font-size:11px;flex-shrink:0}
+
+/* ── APP LAYOUT ── */
+#app{display:none;height:100vh;display:grid;grid-template-rows:48px 1fr;grid-template-columns:1fr 340px}
+#app.visible{display:grid}
+
+/* ── TOPBAR ── */
+.topbar{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;z-index:100}
+.tb-logo{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em}
+.tb-logo-icon{width:24px;height:24px;background:linear-gradient(135deg,var(--purple),var(--blue));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.pro-badge{background:linear-gradient(90deg,var(--purple),var(--gold));font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;color:#000;letter-spacing:.06em}
+.tb-divider{width:1px;height:24px;background:var(--border)}
+.tb-pair{display:flex;align-items:center;gap:8px}
+.tb-pair-name{font-family:var(--mono);font-size:13px;font-weight:700}
+.tb-price{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)}
+.tb-chg{font-family:var(--mono);font-size:11px}
+.tb-chg.pos{color:var(--green)}.tb-chg.neg{color:var(--red)}
+.tb-stat{display:flex;flex-direction:column;gap:1px}
+.tb-stat-lbl{font-size:9px;font-family:var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.tb-stat-val{font-family:var(--mono);font-size:11px;font-weight:700}
+.ws-status{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;margin-left:auto}
+.ws-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.ws-dot.connected{background:var(--green);animation:pulse 2s ease-in-out infinite}
+.ws-dot.connecting{background:var(--yellow);animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,229,160,.4)}50%{opacity:.7;box-shadow:0 0 0 4px rgba(0,229,160,0)}}
+.tb-btn{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.tb-btn:hover{border-color:var(--border2);color:var(--text);background:var(--panel2)}
+.tb-symbol-sel{font-family:var(--mono);font-size:11px;background:var(--panel2);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 8px;cursor:pointer;outline:none}
+
+/* ── CHART AREA ── */
+#chart-wrap{background:var(--bg);position:relative;overflow:hidden}
+#chart{width:100%;height:100%}
+
+/* trade marker tooltip */
+.marker-tooltip{position:absolute;background:var(--panel2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:11px;z-index:50;pointer-events:none;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.mt-whale{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px}
+.mt-row{display:flex;justify-content:space-between;gap:12px;margin-top:3px}
+.mt-lbl{color:var(--muted)}.mt-val{color:var(--text);font-weight:700}
+
+/* chart overlay info */
+.chart-overlay{position:absolute;top:12px;left:12px;display:flex;gap:8px;z-index:20;pointer-events:none}
+.chart-badge{background:rgba(11,15,23,.8);border:1px solid var(--border2);border-radius:5px;padding:4px 10px;font-family:var(--mono);font-size:10px;color:var(--text2);backdrop-filter:blur(4px)}
+.chart-badge span{color:var(--text);font-weight:700}
+
+/* ── RIGHT PANEL ── */
+.right-panel{background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rp-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.rp-tab{flex:1;font-family:var(--mono);font-size:10px;letter-spacing:.05em;padding:10px 8px;text-align:center;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;background:transparent;border-top:none;border-left:none;border-right:none}
+.rp-tab.active{color:var(--green);border-bottom-color:var(--green);background:var(--panel2)}
+.rp-content{flex:1;overflow-y:auto;padding:0}
+.rp-content::-webkit-scrollbar{width:3px}.rp-content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* whale position card */
+.whale-pos-card{border-bottom:1px solid var(--border);padding:11px 14px;cursor:pointer;transition:background .15s;position:relative}
+.whale-pos-card:hover{background:var(--panel2)}
+.whale-pos-card.selected{background:var(--panel2);border-left:2px solid var(--purple)}
+.wpc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.wpc-name{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text)}
+.wpc-qs{font-size:9px;font-family:var(--mono);color:var(--muted);padding:1px 5px;border-radius:3px;background:var(--surface);border:1px solid var(--border)}
+.wpc-bias{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;font-weight:700}
+.bias-l{background:rgba(0,229,160,.12);color:var(--green)}.bias-s{background:rgba(255,64,96,.12);color:var(--red)}
+.wpc-stats{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.wpc-stat{display:flex;flex-direction:column;gap:1px}
+.wpc-stat-lbl{font-size:9px;font-family:var(--mono);color:var(--muted);letter-spacing:.04em}
+.wpc-stat-val{font-family:var(--mono);font-size:11px;font-weight:700}
+.pnl-live{animation:pnl-flash .3s ease}
+@keyframes pnl-flash{0%{opacity:.5}100%{opacity:1}}
+
+/* pnl positive/negative */
+.pv{color:var(--green)}.nv{color:var(--red)}.yv{color:var(--yellow)}
+
+/* open orders */
+.order-card{border-bottom:1px solid var(--border);padding:10px 14px}
+.oc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.oc-coin{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text)}
+.oc-side{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px}
+.oc-l{background:rgba(0,229,160,.12);color:var(--green)}.oc-s{background:rgba(255,64,96,.12);color:var(--red)}
+.oc-type{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.oc-details{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.oc-d{display:flex;flex-direction:column;gap:1px}
+.oc-dl{font-size:9px;font-family:var(--mono);color:var(--muted)}
+.oc-dv{font-family:var(--mono);font-size:11px;color:var(--text)}
+
+/* activity feed */
+.activity-item{border-bottom:1px solid var(--border);padding:9px 14px;animation:slideIn .3s ease both}
+@keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+.ai-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.ai-type{font-family:var(--mono);font-size:10px;font-weight:700}
+.ai-time{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.ai-detail{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.ai-detail strong{color:var(--text)}
+.ai-open{color:var(--green)}.ai-close{color:var(--red)}.ai-mod{color:var(--yellow)}.ai-new{color:var(--purple)}
+
+/* summary bar */
+.summary-bar{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--panel2);flex-shrink:0}
+.sb-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.sb-lbl{font-size:10px;font-family:var(--mono);color:var(--muted)}
+.sb-val{font-family:var(--mono);font-size:12px;font-weight:700}
+.sb-bar{height:5px;border-radius:99px;background:var(--border);overflow:hidden;display:flex;margin-top:4px}
+.sb-long{height:100%;background:var(--green);border-radius:99px 0 0 99px;transition:width .5s}
+.sb-short{height:100%;background:var(--red);border-radius:0 99px 99px 0;flex:1}
+
+/* empty state */
+.rp-empty{padding:32px 16px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:11px;line-height:2}
+
+/* loading spinner */
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* scrollbar */
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN GATE ══ -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-logo">🐋</div>
+    <div class="gate-title">YIELD LAB PRO</div>
+    <div class="gate-sub">Monitoramento de baleias em tempo real<br>via Hyperliquid WebSocket</div>
+    <input class="gate-input" id="gate-input" type="password" placeholder="••••••••••••" maxlength="32">
+    <button class="gate-btn" onclick="tryLogin()">ACESSAR →</button>
+    <div class="gate-err" id="gate-err"></div>
+    <div class="gate-features">
+      <div class="gate-feat">Posições em tempo real via WebSocket</div>
+      <div class="gate-feat">Chart BTC/ETH com marcadores de entrada</div>
+      <div class="gate-feat">PnL ao vivo por baleia</div>
+      <div class="gate-feat">Ordens abertas + feed de atividade</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="tb-logo">
+      <div class="tb-logo-icon">🐋</div>
+      YIELD LAB
+      <span class="pro-badge">PRO</span>
+    </div>
+    <div class="tb-divider"></div>
+    <select class="tb-symbol-sel" id="symbol-sel" onchange="changeSymbol(this.value)">
+      <option value="BTC">BTC / USD</option>
+      <option value="ETH">ETH / USD</option>
+      <option value="SOL">SOL / USD</option>
+      <option value="XRP">XRP / USD</option>
+      <option value="HYPE">HYPE / USD</option>
+    </select>
+    <div class="tb-pair">
+      <div class="tb-price" id="tb-price">—</div>
+      <div class="tb-chg" id="tb-chg">—</div>
+    </div>
+    <div class="tb-divider"></div>
+    <div class="tb-stat">
+      <div class="tb-stat-lbl">Mark</div>
+      <div class="tb-stat-val" id="tb-mark">—</div>
+    </div>
+    <div class="tb-stat">
+      <div class="tb-stat-lbl">24h Vol</div>
+      <div class="tb-stat-val" id="tb-vol">—</div>
+    </div>
+    <div class="tb-stat">
+      <div class="tb-stat-lbl">Funding</div>
+      <div class="tb-stat-val" id="tb-funding" style="color:var(--yellow)">—</div>
+    </div>
+    <div class="tb-stat">
+      <div class="tb-stat-lbl">OI</div>
+      <div class="tb-stat-val" id="tb-oi">—</div>
+    </div>
+    <div class="tb-divider"></div>
+    <div class="tb-stat">
+      <div class="tb-stat-lbl">Baleias LONG</div>
+      <div class="tb-stat-val pv" id="tb-wl">—</div>
+    </div>
+    <div class="tb-stat">
+      <div class="tb-stat-lbl">Baleias SHORT</div>
+      <div class="tb-stat-val nv" id="tb-ws">—</div>
+    </div>
+    <div class="ws-status">
+      <div class="ws-dot connecting" id="ws-dot"></div>
+      <span id="ws-label" style="color:var(--muted)">conectando…</span>
+    </div>
+    <button class="tb-btn" onclick="logout()">SAIR</button>
+  </div>
+
+  <!-- CHART -->
+  <div id="chart-wrap">
+    <div class="chart-overlay">
+      <div class="chart-badge">BTC/USD · <span id="co-tf">1m</span></div>
+      <div class="chart-badge">Marcadores: <span id="co-markers">0</span> entradas</div>
+      <div class="chart-badge" id="co-pnl-bar">PnL Baleias: <span id="co-pnl">—</span></div>
+    </div>
+    <div id="chart"></div>
+    <div id="marker-tooltip" class="marker-tooltip" style="display:none"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <!-- summary bar -->
+    <div class="summary-bar">
+      <div class="sb-row">
+        <span class="sb-lbl">CONSENSO BALEIAS</span>
+        <span class="sb-val" id="sb-signal">—</span>
+      </div>
+      <div class="sb-row">
+        <span class="pv" id="sb-long-pct">—% LONG</span>
+        <span class="nv" id="sb-short-pct">—% SHORT</span>
+      </div>
+      <div class="sb-bar">
+        <div class="sb-long" id="sb-long-bar" style="width:50%"></div>
+        <div class="sb-short"></div>
+      </div>
+    </div>
+
+    <!-- tabs -->
+    <div class="rp-tabs">
+      <button class="rp-tab active" onclick="switchRpTab('positions',this)">POSIÇÕES</button>
+      <button class="rp-tab" onclick="switchRpTab('orders',this)">ORDENS</button>
+      <button class="rp-tab" onclick="switchRpTab('activity',this)">ATIVIDADE</button>
+    </div>
+
+    <div class="rp-content" id="rp-content">
+      <div class="rp-empty"><span class="spin"></span>Carregando baleias…</div>
+    </div>
+
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════════
+const PRO_TOKEN    = 'YIELDLAB2024';  // ← ALTERE ESTA SENHA
+const HL_WS        = 'wss://api.hyperliquid.xyz/ws';
+const HL_REST      = 'https://api.hyperliquid.xyz/info';
+const ALERTS_URL   = './data/alerts.json';
+const POLL_INTERVAL= 30_000;   // ms para re-poll posições
+const MAX_ACTIVITY = 80;
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let currentSymbol = 'BTC';
+let ws = null;
+let chart = null, candleSeries = null, volumeSeries = null;
+let whales = [];           // [{display, address, qs, positions, orders}]
+let whaleSnapshots = {};   // addr → {positions, orders, ts}
+let prevSnapshots  = {};   // para detectar mudanças
+let activity = [];
+let selectedWhale  = null;
+let currentRpTab   = 'positions';
+let markers        = [];   // marcadores no chart
+let lastPrice      = 0;
+let openDay        = 0;
+let pollTimer      = null;
+let markerIdCounter= 0;
+let wsReconnectTimer = null;
+
+// ══════════════════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════════════════
+function tryLogin(){
+  const val = document.getElementById('gate-input').value.trim().toUpperCase();
+  if(val === PRO_TOKEN){
+    localStorage.setItem('yl_pro', btoa(val));
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    initApp();
+  } else {
+    const err = document.getElementById('gate-err');
+    err.textContent = 'Token inválido. Tente novamente.';
+    document.getElementById('gate-input').value = '';
+    setTimeout(()=>err.textContent='', 3000);
+  }
+}
+document.getElementById('gate-input').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') tryLogin();
+});
+function logout(){
+  localStorage.removeItem('yl_pro');
+  ws && ws.close();
+  clearInterval(pollTimer);
+  location.reload();
+}
+// auto-login se já logado
+if(localStorage.getItem('yl_pro') === btoa(PRO_TOKEN)){
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  window.addEventListener('load', initApp);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════════
+const fmt  = n => n>=1e9?'$'+(n/1e9).toFixed(2)+'B':n>=1e6?'$'+(n/1e6).toFixed(2)+'M':n>=1e3?'$'+(n/1e3).toFixed(1)+'K':'$'+n.toFixed(2);
+const fmtP = n => (n>=0?'+':'')+n.toFixed(2)+'%';
+const fmtPnl = n => (n>=0?'+':'')+fmt(Math.abs(n));
+const now  = () => Math.floor(Date.now()/1000);
+const tsStr= () => new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+async function initApp(){
+  initChart();
+  await loadWhalesFromAlerts();
+  connectWebSocket();
+  startPollLoop();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CHART — TradingView Lightweight Charts
+// ══════════════════════════════════════════════════════════════════
+function initChart(){
+  const container = document.getElementById('chart');
+  chart = LightweightCharts.createChart(container, {
+    width:  container.clientWidth,
+    height: container.clientHeight,
+    layout: { background:{color:'#060910'}, textColor:'#6a8aa0' },
+    grid:   { vertLines:{color:'#0f1520'}, horzLines:{color:'#0f1520'} },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor:'#1a2538', scaleMargins:{top:.1,bottom:.1} },
+    timeScale: { borderColor:'#1a2538', timeVisible:true, secondsVisible:false },
+  });
+
+  candleSeries = chart.addCandlestickSeries({
+    upColor:'#00e5a0', downColor:'#ff4060',
+    borderUpColor:'#00e5a0', borderDownColor:'#ff4060',
+    wickUpColor:'#00e5a0', wickDownColor:'#ff4060',
+  });
+
+  volumeSeries = chart.addHistogramSeries({
+    priceFormat:{type:'volume'},
+    priceScaleId:'',
+    scaleMargins:{top:.85,bottom:0},
+  });
+
+  // resize
+  const ro = new ResizeObserver(()=>{
+    chart.applyOptions({width:container.clientWidth, height:container.clientHeight});
+  });
+  ro.observe(container);
+
+  // load histórico de candles
+  loadCandles(currentSymbol);
+}
+
+async function loadCandles(symbol){
+  const endMs   = Date.now();
+  const startMs = endMs - 60 * 60 * 1000; // 1h de histórico em 1min
+  try {
+    const r = await fetch(HL_REST, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'candleSnapshot', req:{
+        coin:symbol, interval:'1m',
+        startTime: startMs, endTime: endMs
+      }})
+    });
+    const candles = await r.json();
+    if(!Array.isArray(candles)) return;
+    const cs = candles.map(c=>({
+      time:  Math.floor(c.t/1000),
+      open:  parseFloat(c.o),
+      high:  parseFloat(c.h),
+      low:   parseFloat(c.l),
+      close: parseFloat(c.c),
+    }));
+    const vs = candles.map(c=>({
+      time:  Math.floor(c.t/1000),
+      value: parseFloat(c.v),
+      color: parseFloat(c.c)>=parseFloat(c.o)?'rgba(0,229,160,.3)':'rgba(255,64,96,.3)',
+    }));
+    candleSeries.setData(cs);
+    volumeSeries.setData(vs);
+    if(cs.length){ lastPrice=cs[cs.length-1].close; openDay=cs[0].open; }
+    // re-plota marcadores
+    replotMarkers();
+  } catch(e){
+    console.warn('loadCandles:', e);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MARKERS — entrada/saída das baleias no chart
+// ══════════════════════════════════════════════════════════════════
+function addMarker({time, type, price, whale, coin, notional, side}){
+  markerIdCounter++;
+  const m = {
+    id: markerIdCounter,
+    time,
+    position: side==='LONG' ? 'belowBar' : 'aboveBar',
+    color:    side==='LONG' ? '#00e5a0'  : '#ff4060',
+    shape:    type==='open' ? 'arrowUp'  : 'arrowDown',
+    text:     `${whale.slice(0,8)}`,
+    _data: {whale, coin, notional, side, type, price},
+  };
+  markers.push(m);
+  // mantém últimos 50
+  if(markers.length > 50) markers.shift();
+  replotMarkers();
+  document.getElementById('co-markers').textContent = markers.length;
+}
+
+function replotMarkers(){
+  if(!candleSeries) return;
+  try {
+    candleSeries.setMarkers(markers.map(m=>({
+      time:     m.time,
+      position: m.position,
+      color:    m.color,
+      shape:    m.shape,
+      text:     m.text,
+    })));
+  } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════════════════
+// WEBSOCKET — Hyperliquid
+// ══════════════════════════════════════════════════════════════════
+function setWsStatus(state){
+  const dot   = document.getElementById('ws-dot');
+  const label = document.getElementById('ws-label');
+  dot.className = 'ws-dot '+state;
+  label.style.color = state==='connected'?'var(--green)':state==='connecting'?'var(--yellow)':'var(--muted)';
+  label.textContent = state==='connected'?'ao vivo':state==='connecting'?'conectando…':'desconectado';
+}
+
+function connectWebSocket(){
+  if(ws && ws.readyState <= 1){ ws.close(); }
+  setWsStatus('connecting');
+  ws = new WebSocket(HL_WS);
+
+  ws.onopen = () => {
+    setWsStatus('connected');
+    // subscreve candles ao vivo (trades → atualiza candle atual)
+    ws.send(JSON.stringify({method:'subscribe', subscription:{type:'trades', coin:currentSymbol}}));
+    // subscreve dados de contexto do ativo (funding, OI, mark price)
+    ws.send(JSON.stringify({method:'subscribe', subscription:{type:'activeAssetCtx', coin:currentSymbol}}));
+  };
+
+  ws.onmessage = e => {
+    try { handleWsMessage(JSON.parse(e.data)); }
+    catch(err){}
+  };
+
+  ws.onclose = () => {
+    setWsStatus('disconnected');
+    clearTimeout(wsReconnectTimer);
+    wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+let currentCandle = null;
+
+function handleWsMessage(msg){
+  const ch = msg.channel, data = msg.data;
+  if(!data) return;
+
+  // ── TRADES → atualiza candle ao vivo ──
+  if(ch === 'trades'){
+    const trades = Array.isArray(data) ? data : [data];
+    trades.forEach(t => {
+      const price = parseFloat(t.px);
+      const ts    = Math.floor(t.time / 1000);
+      const barTs = ts - (ts % 60); // agrega em 1min
+
+      if(!currentCandle || currentCandle.time !== barTs){
+        currentCandle = {time:barTs, open:price, high:price, low:price, close:price, vol:0};
+      }
+      currentCandle.high  = Math.max(currentCandle.high, price);
+      currentCandle.low   = Math.min(currentCandle.low, price);
+      currentCandle.close = price;
+      currentCandle.vol  += parseFloat(t.sz||0);
+
+      candleSeries.update({
+        time:  currentCandle.time,
+        open:  currentCandle.open,
+        high:  currentCandle.high,
+        low:   currentCandle.low,
+        close: currentCandle.close,
+      });
+      volumeSeries.update({
+        time:  currentCandle.time,
+        value: currentCandle.vol,
+        color: currentCandle.close >= currentCandle.open ? 'rgba(0,229,160,.3)':'rgba(255,64,96,.3)',
+      });
+
+      // atualiza preço no topbar
+      if(price !== lastPrice){
+        const chg = openDay ? (price-openDay)/openDay*100 : 0;
+        const el  = document.getElementById('tb-price');
+        el.style.color = price > lastPrice ? 'var(--green)' : 'var(--red)';
+        el.textContent = '$'+price.toLocaleString('pt-BR',{minimumFractionDigits:2});
+        const chgEl = document.getElementById('tb-chg');
+        chgEl.textContent  = fmtP(chg);
+        chgEl.className    = 'tb-chg '+(chg>=0?'pos':'neg');
+        lastPrice = price;
+        // atualiza PnL ao vivo das baleias
+        updateLivePnl(price);
+      }
+    });
+  }
+
+  // ── ACTIVE ASSET CTX → funding, OI, mark ──
+  if(ch === 'activeAssetCtx'){
+    const ctx = data.ctx || data;
+    const mark    = parseFloat(ctx.markPx||0);
+    const funding = parseFloat(ctx.funding||0);
+    const oi      = parseFloat(ctx.openInterest||0);
+    if(mark)    document.getElementById('tb-mark').textContent = '$'+mark.toLocaleString('pt-BR',{minimumFractionDigits:2});
+    if(funding){
+      const fEl = document.getElementById('tb-funding');
+      fEl.textContent = (funding*100).toFixed(4)+'%';
+      fEl.style.color = funding>0?'var(--red)':funding<0?'var(--green)':'var(--yellow)';
+    }
+    if(oi) document.getElementById('tb-oi').textContent = '$'+((oi*mark)/1e6).toFixed(1)+'M';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LOAD BALEIAS DO ALERTS.JSON
+// ══════════════════════════════════════════════════════════════════
+async function loadWhalesFromAlerts(){
+  try {
+    const r = await fetch(ALERTS_URL+'?t='+Date.now());
+    if(!r.ok) return;
+    const data = await r.json();
+    if(!Array.isArray(data)||!data.length) return;
+    const a = data[0];
+
+    // extrai baleias com endereço
+    whales = (a.whale_positions||[]).map(w=>({
+      display:     w.display,
+      address:     w.address || '',
+      qs:          w.quality_score||0,
+      cs:          w.consistency_score||0,
+      bias:        w.bias||'LONG',
+      positions:   w.positions||[],
+      orders:      [],
+      total_upnl:  w.total_upnl||0,
+      total_notional: w.total_notional||0,
+    })).filter(w=>w.display);
+
+    // consenso
+    const longNot  = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='LONG').reduce((a,p)=>a+p.notional,0),0);
+    const shortNot = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='SHORT').reduce((a,p)=>a+p.notional,0),0);
+    updateConsensusBar(longNot, shortNot);
+
+    // plota marcadores iniciais (entradas existentes)
+    const ts = now() - 300; // 5min atrás
+    whales.forEach(w=>{
+      w.positions.forEach(p=>{
+        if(p.coin === currentSymbol){
+          addMarker({time:ts, type:'open', price:p.entry_px, whale:w.display, coin:p.coin, notional:p.notional, side:p.side});
+        }
+      });
+    });
+
+    renderRightPanel();
+    updateTopbarWhales();
+  } catch(e){ console.warn('loadWhalesFromAlerts:', e); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// POLL LOOP — detecta mudanças de posição a cada 30s
+// ══════════════════════════════════════════════════════════════════
+function startPollLoop(){
+  clearInterval(pollTimer);
+  // poll imediato para baleias com endereço
+  pollAllWhales();
+  pollTimer = setInterval(pollAllWhales, POLL_INTERVAL);
+}
+
+async function pollAllWhales(){
+  // limita a top 15 para não sobrecarregar
+  const toCheck = whales.filter(w=>w.address&&w.address.length>10).slice(0,15);
+  for(const whale of toCheck){
+    try {
+      await pollWhale(whale);
+      await sleep(200);
+    } catch(e){}
+  }
+  renderRightPanel();
+  updateTopbarWhales();
+}
+
+async function pollWhale(whale){
+  const r = await fetch(HL_REST, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({type:'clearinghouseState', user: whale.address})
+  });
+  const data = await r.json();
+  const prev = whaleSnapshots[whale.address];
+
+  // ── POSIÇÕES ──
+  const newPositions = [];
+  for(const pos of (data.assetPositions||[])){
+    const p = pos.position||{};
+    const size     = parseFloat(p.szi||0);
+    const entryPx  = parseFloat(p.entryPx||0);
+    const upnl     = parseFloat(p.unrealizedPnl||0);
+    const lev      = parseFloat((p.leverage||{}).value||1);
+    if(size===0||entryPx===0) continue;
+    const notional = Math.abs(size)*entryPx;
+    if(notional < 25000) continue;
+    newPositions.push({
+      coin:     p.coin||'',
+      side:     size>0?'LONG':'SHORT',
+      size:     Math.abs(size),
+      entry_px: entryPx,
+      notional: notional,
+      upnl:     upnl,
+      leverage: lev,
+      upnl_pct: notional>0?(upnl/notional*100):0,
+    });
+  }
+
+  // ── ORDENS ABERTAS ──
+  const newOrders = (data.openOrders||[]).map(o=>({
+    coin:    o.coin||'',
+    side:    o.side||'',
+    sz:      parseFloat(o.sz||0),
+    limitPx: parseFloat(o.limitPx||0),
+    orderType: o.orderType||'',
+    oid:     o.oid||'',
+  })).filter(o=>o.sz>0);
+
+  // ── DETECTA MUDANÇAS (abre/fecha posição) ──
+  if(prev){
+    const prevCoins = new Set(prev.positions.map(p=>p.coin+'_'+p.side));
+    const currCoins = new Set(newPositions.map(p=>p.coin+'_'+p.side));
+
+    // NOVAS posições abertas
+    for(const p of newPositions){
+      const key = p.coin+'_'+p.side;
+      if(!prevCoins.has(key)){
+        addMarker({time:now(), type:'open', price:p.entry_px, whale:whale.display, coin:p.coin, notional:p.notional, side:p.side});
+        addActivity({type:'open', whale:whale.display, coin:p.coin, side:p.side, notional:p.notional, entry:p.entry_px, upnl:p.upnl});
+      }
+    }
+
+    // POSIÇÕES FECHADAS
+    for(const p of prev.positions){
+      const key = p.coin+'_'+p.side;
+      if(!currCoins.has(key)){
+        addMarker({time:now(), type:'close', price:lastPrice||p.entry_px, whale:whale.display, coin:p.coin, notional:p.notional, side:p.side});
+        addActivity({type:'close', whale:whale.display, coin:p.coin, side:p.side, notional:p.notional, entry:p.entry_px, upnl:p.upnl});
+      }
+    }
+
+    // POSIÇÃO AUMENTADA
+    for(const p of newPositions){
+      const key  = p.coin+'_'+p.side;
+      const prev_p = prev.positions.find(pp=>pp.coin+'_'+pp.side===key);
+      if(prev_p && p.notional > prev_p.notional * 1.15){
+        addActivity({type:'increase', whale:whale.display, coin:p.coin, side:p.side, notional:p.notional, entry:p.entry_px, upnl:p.upnl});
+      }
+    }
+  }
+
+  // atualiza snapshot e estado
+  whaleSnapshots[whale.address] = {positions:newPositions, orders:newOrders, ts:Date.now()};
+  // merge de volta no whale obj
+  const wObj = whales.find(w=>w.address===whale.address);
+  if(wObj){
+    wObj.positions   = newPositions;
+    wObj.orders      = newOrders;
+    wObj.total_upnl  = newPositions.reduce((s,p)=>s+p.upnl,0);
+    wObj.total_notional = newPositions.reduce((s,p)=>s+p.notional,0);
+  }
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function addActivity({type, whale, coin, side, notional, entry, upnl}){
+  const typeLabels = {open:'ABRIU', close:'FECHOU', increase:'AUMENTOU', new:'NOVO'};
+  const typeColors = {open:'ai-open', close:'ai-close', increase:'ai-mod', new:'ai-new'};
+  activity.unshift({type, whale, coin, side, notional, entry, upnl, ts:tsStr(), cls:typeColors[type]||'ai-new', lbl:typeLabels[type]||type});
+  if(activity.length > MAX_ACTIVITY) activity.pop();
+  if(currentRpTab==='activity') renderRightPanel();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PNL AO VIVO
+// ══════════════════════════════════════════════════════════════════
+function updateLivePnl(price){
+  let totalPnl = 0;
+  whales.forEach(w=>{
+    w.positions.forEach(p=>{
+      if(p.coin===currentSymbol){
+        p.upnl = p.side==='LONG' ? (price-p.entry_px)*p.size : (p.entry_px-price)*p.size;
+      }
+      totalPnl += p.upnl||0;
+    });
+    w.total_upnl = w.positions.reduce((s,p)=>s+p.upnl,0);
+  });
+
+  const pnlEl = document.getElementById('co-pnl');
+  const barEl = document.getElementById('co-pnl-bar');
+  pnlEl.textContent = fmtPnl(totalPnl);
+  pnlEl.style.color = totalPnl>=0?'var(--green)':'var(--red)';
+
+  if(currentRpTab==='positions') renderRightPanel();
+}
+
+function updateConsensusBar(longNot, shortNot){
+  const total = longNot+shortNot||1;
+  const lPct  = longNot/total*100;
+  const sPct  = shortNot/total*100;
+  document.getElementById('sb-long-bar').style.width=lPct+'%';
+  document.getElementById('sb-long-pct').textContent=lPct.toFixed(1)+'% LONG';
+  document.getElementById('sb-short-pct').textContent=sPct.toFixed(1)+'% SHORT';
+  const sig = lPct>=65?'🟢 BULLISH':lPct>=55?'🟡 LEVE BULLISH':sPct>=65?'🔴 BEARISH':'⚪ NEUTRO';
+  document.getElementById('sb-signal').textContent=sig;
+}
+
+function updateTopbarWhales(){
+  const symWhales = whales.filter(w=>w.positions.some(p=>p.coin===currentSymbol));
+  const longs  = symWhales.filter(w=>w.bias==='LONG').length;
+  const shorts = symWhales.filter(w=>w.bias==='SHORT').length;
+  document.getElementById('tb-wl').textContent = longs;
+  document.getElementById('tb-ws').textContent = shorts;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RIGHT PANEL RENDER
+// ══════════════════════════════════════════════════════════════════
+function switchRpTab(tab, btn){
+  currentRpTab = tab;
+  document.querySelectorAll('.rp-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRightPanel();
+}
+
+function renderRightPanel(){
+  const container = document.getElementById('rp-content');
+
+  if(currentRpTab==='positions'){
+    if(!whales.length){ container.innerHTML='<div class="rp-empty">Sem baleias carregadas.<br>Verifique data/alerts.json</div>'; return; }
+    container.innerHTML = whales.map((w,i)=>{
+      const symPos = w.positions.filter(p=>p.coin===currentSymbol);
+      const totalPnl = w.positions.reduce((s,p)=>s+p.upnl,0);
+      const pnlCls   = totalPnl>=0?'pv':'nv';
+      const isSelected = selectedWhale===w.address;
+      const posHtml  = w.positions.slice(0,4).map(p=>{
+        const pc = p.upnl>=0?'pv':'nv';
+        return`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-weight:700;color:var(--text)">${p.coin}</span>
+            <span class="${p.side==='LONG'?'bias-l':'bias-s'}" style="font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:3px">${p.side}</span>
+          </div>
+          <div style="text-align:right">
+            <div style="color:var(--text2)">${fmt(p.notional)}</div>
+            <div class="${pc}">${fmtPnl(p.upnl)} <span style="color:var(--muted)">(${p.upnl_pct.toFixed(1)}%)</span></div>
+          </div>
+        </div>`;
+      }).join('');
+      return`<div class="whale-pos-card${isSelected?' selected':''}" onclick="selectWhale('${w.address}')">
+        <div class="wpc-top">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="wpc-name">${w.display}</div>
+            <div class="wpc-qs">Q${w.qs.toFixed(3)}</div>
+            ${w.cs>0?`<div class="wpc-qs" style="color:var(--purple);border-color:rgba(167,139,250,.3)">🏆${Math.round(w.cs)}</div>`:''}
+          </div>
+          <div class="wpc-bias ${w.bias==='LONG'?'bias-l':'bias-s'}">${w.bias}</div>
+        </div>
+        <div class="wpc-stats">
+          <div class="wpc-stat"><div class="wpc-stat-lbl">NOTIONAL</div><div class="wpc-stat-val">${fmt(w.total_notional)}</div></div>
+          <div class="wpc-stat"><div class="wpc-stat-lbl">PNL TOTAL</div><div class="wpc-stat-val pnl-live ${pnlCls}">${fmtPnl(totalPnl)}</div></div>
+          <div class="wpc-stat"><div class="wpc-stat-lbl">POSIÇÕES</div><div class="wpc-stat-val">${w.positions.length}</div></div>
+          <div class="wpc-stat"><div class="wpc-stat-lbl">ORDENS</div><div class="wpc-stat-val">${w.orders.length}</div></div>
+        </div>
+        ${isSelected&&posHtml?`<div style="margin-top:8px">${posHtml}</div>`:''}
+      </div>`;
+    }).join('');
+
+  } else if(currentRpTab==='orders'){
+    const allOrders = whales.flatMap(w=>w.orders.map(o=>({...o,whale:w.display})));
+    if(!allOrders.length){ container.innerHTML='<div class="rp-empty">Sem ordens abertas<br>detectadas no momento.</div>'; return; }
+    container.innerHTML = allOrders.map(o=>`
+      <div class="order-card">
+        <div class="oc-top">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="oc-coin">${o.coin}</div>
+            <div class="oc-side ${o.side==='B'?'oc-l':'oc-s'}">${o.side==='B'?'BUY':'SELL'}</div>
+            <div class="oc-type">${o.orderType||'limit'}</div>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text2)">${o.whale.slice(0,12)}…</div>
+        </div>
+        <div class="oc-details">
+          <div class="oc-d"><div class="oc-dl">LIMITE</div><div class="oc-dv">$${o.limitPx.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
+          <div class="oc-d"><div class="oc-dl">TAMANHO</div><div class="oc-dv">${o.sz.toFixed(4)}</div></div>
+          <div class="oc-d"><div class="oc-dl">VALOR</div><div class="oc-dv">${fmt(o.sz*o.limitPx)}</div></div>
+        </div>
+      </div>`).join('');
+
+  } else if(currentRpTab==='activity'){
+    if(!activity.length){ container.innerHTML='<div class="rp-empty">Aguardando atividade das baleias…<br>Novos eventos aparecerão aqui<br>em tempo real.</div>'; return; }
+    container.innerHTML = activity.map(a=>`
+      <div class="activity-item">
+        <div class="ai-top">
+          <span class="ai-type ${a.cls}">${a.lbl} ${a.coin} ${a.side}</span>
+          <span class="ai-time">${a.ts}</span>
+        </div>
+        <div class="ai-detail">
+          <strong>${a.whale.slice(0,14)}</strong> · ${fmt(a.notional)} · entrada $${(a.entry||0).toLocaleString('pt-BR',{minimumFractionDigits:2})} · PnL <span class="${(a.upnl||0)>=0?'pv':'nv'}">${fmtPnl(a.upnl||0)}</span>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function selectWhale(addr){
+  selectedWhale = selectedWhale===addr ? null : addr;
+  renderRightPanel();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SYMBOL SWITCH
+// ══════════════════════════════════════════════════════════════════
+function changeSymbol(symbol){
+  currentSymbol = symbol;
+  markers = [];
+  currentCandle = null;
+  document.getElementById('co-markers').textContent='0';
+  // re-subscreve WS
+  if(ws && ws.readyState===1){
+    ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'trades', coin:currentSymbol}}));
+    ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'activeAssetCtx', coin:currentSymbol}}));
+    ws.send(JSON.stringify({method:'subscribe', subscription:{type:'trades', coin:symbol}}));
+    ws.send(JSON.stringify({method:'subscribe', subscription:{type:'activeAssetCtx', coin:symbol}}));
+  }
+  loadCandles(symbol);
+  // re-plota marcadores para novo símbolo
+  whales.forEach(w=>{
+    w.positions.filter(p=>p.coin===symbol).forEach(p=>{
+      addMarker({time:now()-300, type:'open', price:p.entry_px, whale:w.display, coin:p.coin, notional:p.notional, side:p.side});
+    });
+  });
+  updateTopbarWhales();
+  document.getElementById('co-tf').textContent='1m';
+}
+</script>
+</body>
+</html>
