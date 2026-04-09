@@ -1,57 +1,39 @@
 {
-  "generated_at": "2026-04-09T00:00:00Z",
-  "status": "placeholder",
-  "reason": "fallback inicial",
-  "market_score": {
-    "total_score": 0,
-    "bias": "NEUTRO",
-    "components": {
-      "funding": {
-        "score": 0,
-        "value": 0.0
-      },
-      "long_short": {
-        "score": 0,
-        "value": 1.0
-      },
-      "liquidations": {
-        "score": 0,
-        "long_usd": 0,
-        "short_usd": 0
-      },
-      "spot_flow": {
-        "score": 0,
-        "basis": 0.0
-      },
-      "options": {
-        "score": 0,
-        "put_call_ratio": 1.0
-      }
+  "timestamp": "2026-04-09 20:24:32",
+  "asset": "BTC",
+  "bias": "NEUTRO",
+  "score": 1.14,
+  "scores": {
+    "whales": 0.67,
+    "funding": -0.12,
+    "price_action": 0.59,
+    "basis": 0.0,
+    "liq_pressure": 0.0
+  },
+  "metrics": {
+    "mark_price": 72244.0,
+    "open_interest": 29326.95802,
+    "funding_rate": 1.25e-05,
+    "day_return_pct": 1.174,
+    "whales_long_pct": 53.34,
+    "whales_short_pct": 46.66,
+    "active_whales": 37
+  },
+  "drivers": [
+    {
+      "label": "Whale consensus",
+      "value": 6.68,
+      "direction": 1
+    },
+    {
+      "label": "Funding",
+      "value": 0.0013,
+      "direction": -1
+    },
+    {
+      "label": "BTC day return",
+      "value": 1.174,
+      "direction": 1
     }
-  },
-  "binance": {
-    "BTC": {
-      "funding_rate": 0.0
-    }
-  },
-  "spot_flows": {
-    "BTC": {
-      "basis": 0.0
-    }
-  },
-  "liquidations": {
-    "BTC": {
-      "long_liq_usd": 0,
-      "short_liq_usd": 0
-    }
-  },
-  "options": {
-    "call_pct": 50,
-    "put_pct": 50
-  },
-  "hl_summary": {
-    "directional_whales": 0,
-    "excluded_mm": 0,
-    "excluded_delta_neutral": 0
-  }
+  ]
 }
