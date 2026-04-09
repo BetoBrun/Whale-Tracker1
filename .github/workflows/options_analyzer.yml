@@ -1,0 +1,37 @@
+name: Options Analyzer (1h)
+
+on:
+  schedule:
+    - cron: "30 * * * *"   # roda nos :30 de cada hora
+  workflow_dispatch:
+
+jobs:
+  options:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run options analyzer
+        run: python options_analyzer.py
+
+      - name: Commit options data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/options_data.json || true
+          git diff --cached --quiet || git commit -m "options: $(date -u +'%H:%M') UTC"
+          git push
