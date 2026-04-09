@@ -314,40 +314,146 @@ def get_spot_price(currency):
 # MAIN
 # ══════════════════════════════════════════════════════════════
 
+
+def build_fallback_options_data(reason="fallback generated"):
+    ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    fallback = {
+        "timestamp": ts,
+        "status": "fallback",
+        "message": reason,
+        "source": "static_fallback",
+        "BTC": {
+            "spot_price": 72000,
+            "total_call_oi": 12000.0,
+            "total_put_oi": 15000.0,
+            "put_call_ratio": 1.25,
+            "call_pct": 44.4,
+            "put_pct": 55.6,
+            "next_expiry": "NEXT",
+            "next_max_pain": 70000,
+            "by_expiry": {
+                "NEXT": {
+                    "expiry": "NEXT",
+                    "total_call_oi": 4200.0,
+                    "total_put_oi": 5600.0,
+                    "total_oi": 9800.0,
+                    "put_call_ratio": 1.33,
+                    "call_pct": 42.9,
+                    "put_pct": 57.1,
+                    "max_pain": 70000,
+                    "max_pain_dist": -2.8,
+                    "total_gex": 12500000,
+                    "gex_regime": "POSITIVO",
+                    "vol_skew": 4.2,
+                    "skew_signal": "MEDO",
+                    "top_strikes": [{"strike":68000,"oi":1700.0},{"strike":70000,"oi":2400.0},{"strike":72000,"oi":2100.0},{"strike":75000,"oi":1600.0}],
+                    "nearby_strikes": [
+                        {"strike":68000,"call_oi":800.0,"put_oi":900.0,"call_iv":58.0,"put_iv":63.0,"gex":2200000.0,"dist_pct":-5.6},
+                        {"strike":70000,"call_oi":1100.0,"put_oi":1300.0,"call_iv":57.0,"put_iv":62.0,"gex":4100000.0,"dist_pct":-2.8},
+                        {"strike":72000,"call_oi":1200.0,"put_oi":900.0,"call_iv":56.0,"put_iv":59.0,"gex":3600000.0,"dist_pct":0.0},
+                        {"strike":75000,"call_oi":900.0,"put_oi":700.0,"call_iv":55.0,"put_iv":58.0,"gex":1800000.0,"dist_pct":4.2}
+                    ],
+                    "gex_support": [{"strike":70000,"gex":4100000.0},{"strike":72000,"gex":3600000.0}],
+                    "gex_resistance": [{"strike":75000,"gex":-1900000.0},{"strike":78000,"gex":-1200000.0}],
+                    "strikes_count": 18
+                }
+            }
+        },
+        "ETH": {
+            "spot_price": 3600,
+            "total_call_oi": 18000.0,
+            "total_put_oi": 14000.0,
+            "put_call_ratio": 0.78,
+            "call_pct": 56.2,
+            "put_pct": 43.8,
+            "next_expiry": "NEXT",
+            "next_max_pain": 3500,
+            "by_expiry": {
+                "NEXT": {
+                    "expiry": "NEXT",
+                    "total_call_oi": 6200.0,
+                    "total_put_oi": 4800.0,
+                    "total_oi": 11000.0,
+                    "put_call_ratio": 0.77,
+                    "call_pct": 56.4,
+                    "put_pct": 43.6,
+                    "max_pain": 3500,
+                    "max_pain_dist": -2.8,
+                    "total_gex": -6200000,
+                    "gex_regime": "NEGATIVO",
+                    "vol_skew": 1.1,
+                    "skew_signal": "NEUTRO",
+                    "top_strikes": [{"strike":3400,"oi":2100.0},{"strike":3500,"oi":2600.0},{"strike":3600,"oi":2300.0},{"strike":3800,"oi":1800.0}],
+                    "nearby_strikes": [
+                        {"strike":3400,"call_oi":900.0,"put_oi":1200.0,"call_iv":64.0,"put_iv":66.0,"gex":1200000.0,"dist_pct":-5.6},
+                        {"strike":3500,"call_oi":1200.0,"put_oi":1400.0,"call_iv":63.0,"put_iv":65.0,"gex":1700000.0,"dist_pct":-2.8},
+                        {"strike":3600,"call_oi":1400.0,"put_oi":900.0,"call_iv":62.0,"put_iv":63.0,"gex":-2100000.0,"dist_pct":0.0},
+                        {"strike":3800,"call_oi":1300.0,"put_oi":500.0,"call_iv":61.0,"put_iv":61.0,"gex":-2400000.0,"dist_pct":5.6}
+                    ],
+                    "gex_support": [{"strike":3500,"gex":1700000.0},{"strike":3400,"gex":1200000.0}],
+                    "gex_resistance": [{"strike":3800,"gex":-2400000.0},{"strike":3600,"gex":-2100000.0}],
+                    "strikes_count": 20
+                }
+            }
+        }
+    }
+    return fallback
+
+
+def write_options_payload(payload):
+    OPTIONS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    log.info(f"  ✅ Salvo em {OPTIONS_FILE}")
+
+
 def run_options_analysis():
     ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     log.info(f"📊 Options analysis — {ts}")
 
-    result = {"timestamp": ts, "BTC": {}, "ETH": {}}
+    result = {"timestamp": ts, "status": "ok", "message": "live derivit analysis", "BTC": {}, "ETH": {}}
 
-    # busca tickers uma vez para ambas currencies
-    log.info("  Baixando book summaries…")
-    tickers = get_tickers_bulk([])
+    try:
+        log.info("  Baixando book summaries…")
+        tickers = get_tickers_bulk([])
 
-    for currency in ["BTC", "ETH"]:
-        try:
-            log.info(f"  Analisando {currency}…")
-            spot = get_spot_price(currency)
-            if spot == 0:
-                log.warning(f"  {currency}: spot price zero, pulando")
-                continue
-            instruments = get_instruments(currency)
-            analysis    = analyze_currency(currency, instruments, tickers, spot)
-            result[currency] = analysis
+        ok_count = 0
+        for currency in ["BTC", "ETH"]:
+            try:
+                log.info(f"  Analisando {currency}…")
+                spot = get_spot_price(currency)
+                if spot == 0:
+                    log.warning(f"  {currency}: spot price zero, pulando")
+                    continue
+                instruments = get_instruments(currency)
+                analysis    = analyze_currency(currency, instruments, tickers, spot)
+                result[currency] = analysis
+                if analysis.get("by_expiry"):
+                    ok_count += 1
 
-            next_e = analysis.get("next_expiry","")
-            mp     = analysis.get("next_max_pain", 0)
-            pc     = analysis.get("put_call_ratio", 0)
-            log.info(f"  {currency}: spot ${spot:,.0f} | next expiry {next_e} | max pain ${mp:,} | P/C {pc:.2f}")
-            time.sleep(1)
-        except Exception as e:
-            log.error(f"  {currency} análise falhou: {e}")
+                next_e = analysis.get("next_expiry","")
+                mp     = analysis.get("next_max_pain", 0)
+                pc     = analysis.get("put_call_ratio", 0)
+                log.info(f"  {currency}: spot ${spot:,.0f} | next expiry {next_e} | max pain ${mp:,} | P/C {pc:.2f}")
+                time.sleep(1)
+            except Exception as e:
+                log.error(f"  {currency} análise falhou: {e}")
 
-    OPTIONS_FILE.write_text(
-        json.dumps(result, ensure_ascii=False, indent=2),
-        encoding="utf-8")
-    log.info(f"  ✅ Salvo em {OPTIONS_FILE}")
-    return result
+        if ok_count == 0:
+            fallback = build_fallback_options_data("Deribit/Binance indisponíveis; exibindo fallback estático")
+            write_options_payload(fallback)
+            return fallback
+
+        if ok_count < 2:
+            result["status"] = "partial"
+            result["message"] = "partial options analysis; one currency missing"
+
+        write_options_payload(result)
+        return result
+
+    except Exception as e:
+        log.error(f"  análise global falhou: {e}")
+        fallback = build_fallback_options_data(f"fallback após erro: {e}")
+        write_options_payload(fallback)
+        return fallback
 
 
 if __name__ == "__main__":

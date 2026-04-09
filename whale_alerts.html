@@ -405,7 +405,7 @@ main{max-width:1300px;margin:0 auto;padding:18px 24px 60px;display:grid;grid-tem
 <!-- ═══ OPÇÕES ═══ -->
 <div class="tab-content" id="tab-opcoes">
   <div class="opt-wrap" id="opt-wrap">
-    <div class="full empty"><span class="spin"></span>Carregando dados de opções (Deribit)…</div>
+    <div class="full empty"><span class="spin"></span>Carregando dados de opções…<br><span style="color:var(--muted)">aguardando data/options_data.json</span></div>
   </div>
 </div>
 
@@ -533,10 +533,19 @@ function setFilter(type,btn){currentFilter=type;document.querySelectorAll('.fb')
 // ── OPÇÕES ──
 function renderOpcoes(opt){
   const wrap=document.getElementById('opt-wrap');
-  if(!opt||(!opt.BTC?.by_expiry&&!opt.ETH?.by_expiry)){
-    wrap.innerHTML=`<div class="full empty">data/options_data.json não encontrado<br><span style="color:var(--blue)">python options_analyzer.py</span> para gerar<br><br>ou rode via Actions → Options Analyzer → Run workflow</div>`;
+  if(!opt){
+    wrap.innerHTML=`<div class="full empty">Falha ao carregar data/options_data.json<br><span style="color:var(--red)">verifique se o arquivo existe no GitHub Pages</span><br><br><span style="color:var(--blue)">python options_analyzer.py</span> para gerar</div>`;
     return;
   }
+  if(!opt.BTC?.by_expiry&&!opt.ETH?.by_expiry){
+    const msg=opt.message||'sem vencimentos disponíveis';
+    wrap.innerHTML=`<div class="full empty">Opções indisponíveis no momento<br><span style="color:var(--muted)">${msg}</span><br><br><span style="color:var(--blue)">data/options_data.json</span> existe, mas sem conteúdo utilizável</div>`;
+    return;
+  }
+
+  const status=opt.status||'ok';
+  const statusLabel=status==='ok'?'DADOS AO VIVO':status==='partial'?'DADOS PARCIAIS':'FALLBACK';
+  const statusColor=status==='ok'?'var(--green)':status==='partial'?'var(--amber)':'var(--purple)';
 
   // badge
   const btcNextMP=opt.BTC?.next_max_pain||0;
@@ -551,7 +560,7 @@ function renderOpcoes(opt){
 
   // tabs BTC/ETH
   html+=`<div class="full" style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-    <div class="sec-title" style="margin:0">Análise de Opções — Deribit</div>
+    <div class="sec-title" style="margin:0">Análise de Opções — Deribit</div><div style="font-family:var(--mono);font-size:10px;color:${statusColor};padding:4px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02)">${statusLabel}${opt.timestamp?` · upd ${String(opt.timestamp).slice(11,16)} UTC`:''}</div>
     <div style="display:flex;gap:5px;margin-left:auto">
       <button class="exp-btn active" id="cur-btc-btn" onclick="switchCurrency('BTC',this)">BTC</button>
       <button class="exp-btn" id="cur-eth-btn" onclick="switchCurrency('ETH',this)">ETH</button>
@@ -889,8 +898,17 @@ async function loadMarket(){
   }catch(e){renderMercado(null,[]);}
 }
 async function loadOptions(){
-  try{const r=await fetch(OPT_URL+'?t='+Date.now());if(!r.ok)return;const data=await r.json();optData=data;renderOpcoes(data);}catch(e){renderOpcoes(null);}
+  try{
+    const r=await fetch(OPT_URL+'?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok){renderOpcoes({status:'missing',message:'HTTP '+r.status});return;}
+    const data=await r.json();
+    optData=data;
+    renderOpcoes(data);
+  }catch(e){
+    renderOpcoes({status:'error',message:(e&&e.message)?e.message:'erro desconhecido'});
+  }
 }
+
 
 loadData();loadSpikes();loadMarket();loadOptions();
 setInterval(loadData,RELOAD_MS);setInterval(loadSpikes,SPIKE_MS);setInterval(loadMarket,MKT_MS);setInterval(loadOptions,OPT_MS);
