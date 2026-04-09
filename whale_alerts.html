@@ -534,7 +534,7 @@ function setFilter(type,btn){currentFilter=type;document.querySelectorAll('.fb')
 function renderOpcoes(opt){
   const wrap=document.getElementById('opt-wrap');
   if(!opt||(!opt.BTC?.by_expiry&&!opt.ETH?.by_expiry)){
-    wrap.innerHTML=`<div class="full empty">Dados de opções ainda indisponíveis.<br><span style="color:var(--blue)">Será preenchido automaticamente pelo workflow.</span></div>`;
+    wrap.innerHTML=`<div class="full empty">data/options_data.json não encontrado<br><span style="color:var(--blue)">python options_analyzer.py</span> para gerar<br><br>ou rode via Actions → Options Analyzer → Run workflow</div>`;
     return;
   }
 
@@ -690,7 +690,7 @@ function snc(s){return s>0?'pos':s<0?'neg':'neu';}
 
 function renderMercado(ctx,hist){
   const wrap=document.getElementById('mkt-wrap');
-  if(!ctx){wrap.innerHTML=`<div class="full empty">Contexto de mercado ainda indisponível.<br><span style="color:var(--blue)">Será preenchido automaticamente pelo workflow.</span></div>`;return;}
+  if(!ctx){wrap.innerHTML=`<div class="full empty">data/market_context.json não encontrado<br><span style="color:var(--blue)">python market_context.py</span> para gerar</div>`;return;}
   const ms=ctx.market_score||{},bn=ctx.binance||{},sp=ctx.spot_flows||{},liq=ctx.liquidations||{},opt=ctx.options||{},hl=ctx.hl_summary||{};
   const btcBn=bn.BTC||{},btcLiq=liq.BTC||{},btcFlow=sp.BTC||{};
   const score=ms.total_score||0,bias=ms.bias||'NEUTRO',bColor=biasColor(bias);
@@ -889,16 +889,7 @@ async function loadMarket(){
   }catch(e){renderMercado(null,[]);}
 }
 async function loadOptions(){
-  try{
-    const r=await fetch(OPT_URL+'?t='+Date.now());
-    if(!r.ok){optData=null;renderOpcoes(null);return;}
-    const data=await r.json();
-    optData=data;
-    renderOpcoes(data);
-  }catch(e){
-    optData=null;
-    renderOpcoes(null);
-  }
+  try{const r=await fetch(OPT_URL+'?t='+Date.now());if(!r.ok)return;const data=await r.json();optData=data;renderOpcoes(data);}catch(e){renderOpcoes(null);}
 }
 
 loadData();loadSpikes();loadMarket();loadOptions();

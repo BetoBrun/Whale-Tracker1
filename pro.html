@@ -29,7 +29,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 .gate-feat::before{content:'✓';color:var(--green);font-family:var(--mono);font-size:11px;flex-shrink:0}
 
 /* ── APP LAYOUT ── */
-#app{display:none;height:100vh;display:grid;grid-template-rows:48px 1fr;grid-template-columns:1fr 340px}
+#app{display:none;height:100vh;grid-template-rows:48px 1fr;grid-template-columns:1fr 340px}
 #app.visible{display:grid}
 
 /* ── TOPBAR ── */
@@ -252,7 +252,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     </div>
 
     <div class="rp-content" id="rp-content">
-      <div class="rp-empty"><span class="spin"></span>Inicializando painel…</div>
+      <div class="rp-empty"><span class="spin"></span>Carregando baleias…</div>
     </div>
 
   </div>
@@ -263,12 +263,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 // ══════════════════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════════════════
-const PRO_TOKEN    = (window.YL_PRO_TOKEN || 'YIELDLAB2024').toUpperCase();
+const PRO_TOKEN    = 'YIELDLAB2024';  // ← ALTERE ESTA SENHA
 const HL_WS        = 'wss://api.hyperliquid.xyz/ws';
 const HL_REST      = 'https://api.hyperliquid.xyz/info';
 const ALERTS_URL   = './data/alerts.json';
 const POLL_INTERVAL= 30_000;   // ms para re-poll posições
 const MAX_ACTIVITY = 80;
+const BOOT_TIMEOUT_MS = 12_000;
 
 // ══════════════════════════════════════════════════════════════════
 // STATE
@@ -288,10 +289,8 @@ let openDay        = 0;
 let pollTimer      = null;
 let markerIdCounter= 0;
 let wsReconnectTimer = null;
-let lastAlertsLoad = 0;
-let lastPollRun = 0;
-let lastPollError = "";
-let statusSummary = {loaded:0, withAddress:0, polled:0};
+let lastBootStatus = 'iniciando';
+let lastAlertsLoad = null;
 
 // ══════════════════════════════════════════════════════════════════
 // AUTH
@@ -299,7 +298,7 @@ let statusSummary = {loaded:0, withAddress:0, polled:0};
 function tryLogin(){
   const val = document.getElementById('gate-input').value.trim().toUpperCase();
   if(val === PRO_TOKEN){
-    localStorage.setItem('yl_pro', btoa(PRO_TOKEN));
+    localStorage.setItem('yl_pro', btoa(val));
     document.getElementById('gate').style.display = 'none';
     document.getElementById('app').classList.add('visible');
     initApp();
@@ -335,12 +334,39 @@ const fmtPnl = n => (n>=0?'+':'')+fmt(Math.abs(n));
 const now  = () => Math.floor(Date.now()/1000);
 const tsStr= () => new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
+function setRpMessage(html){
+  const el = document.getElementById('rp-content');
+  if(el) el.innerHTML = `<div class="rp-empty">${html}</div>`;
+}
+function setBootStatus(msg){
+  lastBootStatus = msg;
+  const el = document.getElementById('ws-label');
+  if(el && (!ws || ws.readyState !== 1)) el.textContent = msg;
+}
+function safeArray(x){ return Array.isArray(x) ? x : []; }
+function deriveBiasFromPositions(positions){
+  const longNot = positions.filter(p=>p.side==='LONG').reduce((s,p)=>s+(p.notional||0),0);
+  const shortNot = positions.filter(p=>p.side==='SHORT').reduce((s,p)=>s+(p.notional||0),0);
+  if(longNot===0 && shortNot===0) return 'NEUTRO';
+  return longNot >= shortNot ? 'LONG' : 'SHORT';
+}
+
 // ══════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════
 async function initApp(){
   initChart();
-  try{ await loadWhalesFromAlerts(); } catch(e){ console.warn('init load:', e); }
+  setRpMessage('<span class="spin"></span>Carregando snapshot inicial…');
+  setBootStatus('carregando snapshot…');
+  try {
+    await Promise.race([
+      loadWhalesFromAlerts(),
+      new Promise((_, reject)=>setTimeout(()=>reject(new Error('timeout ao carregar alerts.json')), BOOT_TIMEOUT_MS))
+    ]);
+  } catch(err){
+    console.warn('initApp:', err);
+    setRpMessage('Falha ao carregar snapshot inicial.<br>Verifique <b>data/alerts.json</b> e rode o workflow novamente.');
+  }
   connectWebSocket();
   startPollLoop();
 }
@@ -470,6 +496,7 @@ function connectWebSocket(){
 
   ws.onopen = () => {
     setWsStatus('connected');
+    if(document.getElementById('ws-label')) document.getElementById('ws-label').textContent = 'ao vivo';
     // subscreve candles ao vivo (trades → atualiza candle atual)
     ws.send(JSON.stringify({method:'subscribe', subscription:{type:'trades', coin:currentSymbol}}));
     // subscreve dados de contexto do ativo (funding, OI, mark price)
@@ -563,29 +590,48 @@ function handleWsMessage(msg){
 async function loadWhalesFromAlerts(){
   try {
     const r = await fetch(ALERTS_URL+'?t='+Date.now(), {cache:'no-store'});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    if(!r.ok) throw new Error(`HTTP ${r.status} ao buscar alerts.json`);
     const data = await r.json();
-    if(!Array.isArray(data) || !data.length) throw new Error('alerts.json vazio');
-    const a = data[0] || {};
+    const rows = Array.isArray(data) ? data : (data ? [data] : []);
+    if(!rows.length) throw new Error('alerts.json vazio');
+    const a = rows[0] || {};
+    const wp = safeArray(a.whale_positions);
 
-    whales = (a.whale_positions||[]).map(w=>({
-      display:     w.display,
-      address:     w.address || '',
-      qs:          parseFloat(w.quality_score||0),
-      cs:          parseFloat(w.consistency_score||0),
-      bias:        w.bias||'LONG',
-      positions:   Array.isArray(w.positions)?w.positions:[],
-      orders:      [],
-      total_upnl:  parseFloat(w.total_upnl||0),
-      total_notional: parseFloat(w.total_notional||0),
-    })).filter(w=>w.display);
+    whales = wp.map(w=>{
+      const positions = safeArray(w.positions).map(p=>({
+        coin: p.coin || '',
+        side: p.side || 'LONG',
+        size: parseFloat(p.size || 0),
+        entry_px: parseFloat(p.entry_px || 0),
+        notional: parseFloat(p.notional || 0),
+        upnl: parseFloat(p.upnl || 0),
+        leverage: parseFloat(p.leverage || 1),
+        upnl_pct: parseFloat(p.upnl_pct || 0),
+      })).filter(p=>p.coin && p.notional > 0);
+      const totalUpnl = positions.reduce((s,p)=>s+(p.upnl||0),0);
+      const totalNotional = positions.reduce((s,p)=>s+(p.notional||0),0);
+      return {
+        display: String(w.display || 'Whale').trim(),
+        address: String(w.address || '').trim(),
+        qs: Number(w.quality_score || 0),
+        cs: Number(w.consistency_score || 0),
+        bias: (w.bias || deriveBiasFromPositions(positions) || 'NEUTRO'),
+        positions,
+        orders: safeArray(w.orders),
+        total_upnl: Number(w.total_upnl || totalUpnl || 0),
+        total_notional: Number(w.total_notional || totalNotional || 0),
+      };
+    }).filter(w=>w.display);
 
-    statusSummary.loaded = whales.length;
-    statusSummary.withAddress = whales.filter(w=>w.address&&w.address.length>10).length;
-    lastAlertsLoad = Date.now();
+    if(!whales.length){
+      renderRightPanel();
+      setBootStatus('sem baleias no snapshot');
+      return;
+    }
 
-    const longNot = whales.reduce((sum,w)=>sum + w.positions.filter(p=>p.side==='LONG').reduce((a,p)=>a+(p.notional||0),0),0);
-    const shortNot = whales.reduce((sum,w)=>sum + w.positions.filter(p=>p.side==='SHORT').reduce((a,p)=>a+(p.notional||0),0),0);
+    lastAlertsLoad = new Date();
+    const longNot  = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='LONG').reduce((a,p)=>a+(p.notional||0),0),0);
+    const shortNot = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='SHORT').reduce((a,p)=>a+(p.notional||0),0),0);
     updateConsensusBar(longNot, shortNot);
 
     const ts = now() - 300;
@@ -599,10 +645,20 @@ async function loadWhalesFromAlerts(){
 
     renderRightPanel();
     updateTopbarWhales();
+
+    const withAddr = whales.filter(w=>w.address && w.address.length > 10).length;
+    if(withAddr > 0){
+      setBootStatus(`${whales.length} baleias carregadas · ${withAddr} com polling`);
+    } else {
+      setBootStatus(`${whales.length} baleias carregadas · sem addresses no snapshot`);
+    }
   } catch(e){
-    lastPollError = `Falha ao carregar alerts.json: ${e.message||e}`;
     console.warn('loadWhalesFromAlerts:', e);
+    whales = [];
     renderRightPanel();
+    setBootStatus('erro no snapshot');
+    setRpMessage(`Falha ao carregar baleias.<br><span style="color:var(--muted)">${String(e.message || e)}</span>`);
+    throw e;
   }
 }
 
@@ -611,30 +667,24 @@ async function loadWhalesFromAlerts(){
 // ══════════════════════════════════════════════════════════════════
 function startPollLoop(){
   clearInterval(pollTimer);
+  // poll imediato para baleias com endereço
   pollAllWhales();
   pollTimer = setInterval(pollAllWhales, POLL_INTERVAL);
 }
 
 async function pollAllWhales(){
-  const toCheck = whales.filter(w=>w.address&&w.address.length>10).slice(0,15);
-  statusSummary.polled = 0;
-  lastPollRun = Date.now();
-
+  const toCheck = whales.filter(w=>w.address && w.address.length>10).slice(0,15);
   if(!toCheck.length){
-    lastPollError = whales.length ? 'Nenhuma baleia com address disponível em data/alerts.json. Rode o tracker atualizado.' : 'Nenhuma baleia carregada.';
     renderRightPanel();
     updateTopbarWhales();
     return;
   }
-
-  lastPollError = '';
   for(const whale of toCheck){
     try {
       await pollWhale(whale);
-      statusSummary.polled += 1;
-      await sleep(160);
+      await sleep(180);
     } catch(e){
-      lastPollError = `Falha no polling: ${e.message||e}`;
+      console.warn('pollWhale:', whale.display, e);
     }
   }
   renderRightPanel();
@@ -647,7 +697,6 @@ async function pollWhale(whale){
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({type:'clearinghouseState', user: whale.address})
   });
-  if(!r.ok) throw new Error(`clearinghouseState HTTP ${r.status}`);
   const data = await r.json();
   const prev = whaleSnapshots[whale.address];
 
@@ -775,12 +824,8 @@ function updateConsensusBar(longNot, shortNot){
 
 function updateTopbarWhales(){
   const symWhales = whales.filter(w=>w.positions.some(p=>p.coin===currentSymbol));
-  let longs = 0, shorts = 0;
-  symWhales.forEach(w=>{
-    const longNot = w.positions.filter(p=>p.coin===currentSymbol&&p.side==='LONG').reduce((a,p)=>a+(p.notional||0),0);
-    const shortNot = w.positions.filter(p=>p.coin===currentSymbol&&p.side==='SHORT').reduce((a,p)=>a+(p.notional||0),0);
-    if(longNot >= shortNot) longs += 1; else shorts += 1;
-  });
+  const longs  = symWhales.filter(w=>deriveBiasFromPositions(w.positions.filter(p=>p.coin===currentSymbol))==='LONG').length;
+  const shorts = symWhales.filter(w=>deriveBiasFromPositions(w.positions.filter(p=>p.coin===currentSymbol))==='SHORT').length;
   document.getElementById('tb-wl').textContent = longs;
   document.getElementById('tb-ws').textContent = shorts;
 }
@@ -799,9 +844,8 @@ function renderRightPanel(){
   const container = document.getElementById('rp-content');
 
   if(currentRpTab==='positions'){
-    if(!whales.length){ const msg = lastPollError || 'Sem baleias carregadas. Verifique data/alerts.json'; container.innerHTML=`<div class="rp-empty">${msg}<br><br><span style="color:var(--muted);font-size:11px">loaded=${statusSummary.loaded} · withAddress=${statusSummary.withAddress} · polled=${statusSummary.polled}</span></div>`; return; }
-    const diag = `<div class="rp-empty" style="margin-bottom:10px;padding:10px 12px;text-align:left">Snapshot: ${statusSummary.loaded} baleias · endereços: ${statusSummary.withAddress} · polling: ${statusSummary.polled}<br><span style="color:var(--muted);font-size:11px">alerts=${lastAlertsLoad?new Date(lastAlertsLoad).toLocaleTimeString('pt-BR'):'—'} · poll=${lastPollRun?new Date(lastPollRun).toLocaleTimeString('pt-BR'):'—'}${lastPollError?` · erro: ${lastPollError}`:''}</span></div>`;
-    container.innerHTML = diag + whales.map((w,i)=>{
+    if(!whales.length){ container.innerHTML='<div class="rp-empty">Sem baleias carregadas.<br>Verifique <b>data/alerts.json</b> e o workflow.<br><span style="color:var(--muted)">Status: '+lastBootStatus+'</span></div>'; return; }
+    container.innerHTML = whales.map((w,i)=>{
       const symPos = w.positions.filter(p=>p.coin===currentSymbol);
       const totalPnl = w.positions.reduce((s,p)=>s+p.upnl,0);
       const pnlCls   = totalPnl>=0?'pv':'nv';
@@ -882,14 +926,14 @@ function selectWhale(addr){
 // SYMBOL SWITCH
 // ══════════════════════════════════════════════════════════════════
 function changeSymbol(symbol){
+  const prevSymbol = currentSymbol;
   currentSymbol = symbol;
   markers = [];
   currentCandle = null;
   document.getElementById('co-markers').textContent='0';
-  // re-subscreve WS
   if(ws && ws.readyState===1){
-    ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'trades', coin:currentSymbol}}));
-    ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'activeAssetCtx', coin:currentSymbol}}));
+    ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'trades', coin:prevSymbol}}));
+    ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'activeAssetCtx', coin:prevSymbol}}));
     ws.send(JSON.stringify({method:'subscribe', subscription:{type:'trades', coin:symbol}}));
     ws.send(JSON.stringify({method:'subscribe', subscription:{type:'activeAssetCtx', coin:symbol}}));
   }
