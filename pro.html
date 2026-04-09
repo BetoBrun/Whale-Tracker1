@@ -252,7 +252,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     </div>
 
     <div class="rp-content" id="rp-content">
-      <div class="rp-empty"><span class="spin"></span>Carregando baleias…</div>
+      <div class="rp-empty"><span class="spin"></span>Inicializando painel…</div>
     </div>
 
   </div>
@@ -263,7 +263,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 // ══════════════════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════════════════
-const PRO_TOKEN    = 'YIELDLAB2024';  // ← ALTERE ESTA SENHA
+const PRO_TOKEN    = (window.YL_PRO_TOKEN || 'YIELDLAB2024').toUpperCase();
 const HL_WS        = 'wss://api.hyperliquid.xyz/ws';
 const HL_REST      = 'https://api.hyperliquid.xyz/info';
 const ALERTS_URL   = './data/alerts.json';
@@ -288,6 +288,10 @@ let openDay        = 0;
 let pollTimer      = null;
 let markerIdCounter= 0;
 let wsReconnectTimer = null;
+let lastAlertsLoad = 0;
+let lastPollRun = 0;
+let lastPollError = "";
+let statusSummary = {loaded:0, withAddress:0, polled:0};
 
 // ══════════════════════════════════════════════════════════════════
 // AUTH
@@ -295,7 +299,7 @@ let wsReconnectTimer = null;
 function tryLogin(){
   const val = document.getElementById('gate-input').value.trim().toUpperCase();
   if(val === PRO_TOKEN){
-    localStorage.setItem('yl_pro', btoa(val));
+    localStorage.setItem('yl_pro', btoa(PRO_TOKEN));
     document.getElementById('gate').style.display = 'none';
     document.getElementById('app').classList.add('visible');
     initApp();
@@ -336,7 +340,7 @@ const tsStr= () => new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:
 // ══════════════════════════════════════════════════════════════════
 async function initApp(){
   initChart();
-  await loadWhalesFromAlerts();
+  try{ await loadWhalesFromAlerts(); } catch(e){ console.warn('init load:', e); }
   connectWebSocket();
   startPollLoop();
 }
@@ -558,32 +562,33 @@ function handleWsMessage(msg){
 // ══════════════════════════════════════════════════════════════════
 async function loadWhalesFromAlerts(){
   try {
-    const r = await fetch(ALERTS_URL+'?t='+Date.now());
-    if(!r.ok) return;
+    const r = await fetch(ALERTS_URL+'?t='+Date.now(), {cache:'no-store'});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
-    if(!Array.isArray(data)||!data.length) return;
-    const a = data[0];
+    if(!Array.isArray(data) || !data.length) throw new Error('alerts.json vazio');
+    const a = data[0] || {};
 
-    // extrai baleias com endereço
     whales = (a.whale_positions||[]).map(w=>({
       display:     w.display,
       address:     w.address || '',
-      qs:          w.quality_score||0,
-      cs:          w.consistency_score||0,
+      qs:          parseFloat(w.quality_score||0),
+      cs:          parseFloat(w.consistency_score||0),
       bias:        w.bias||'LONG',
-      positions:   w.positions||[],
+      positions:   Array.isArray(w.positions)?w.positions:[],
       orders:      [],
-      total_upnl:  w.total_upnl||0,
-      total_notional: w.total_notional||0,
+      total_upnl:  parseFloat(w.total_upnl||0),
+      total_notional: parseFloat(w.total_notional||0),
     })).filter(w=>w.display);
 
-    // consenso
-    const longNot  = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='LONG').reduce((a,p)=>a+p.notional,0),0);
-    const shortNot = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='SHORT').reduce((a,p)=>a+p.notional,0),0);
+    statusSummary.loaded = whales.length;
+    statusSummary.withAddress = whales.filter(w=>w.address&&w.address.length>10).length;
+    lastAlertsLoad = Date.now();
+
+    const longNot = whales.reduce((sum,w)=>sum + w.positions.filter(p=>p.side==='LONG').reduce((a,p)=>a+(p.notional||0),0),0);
+    const shortNot = whales.reduce((sum,w)=>sum + w.positions.filter(p=>p.side==='SHORT').reduce((a,p)=>a+(p.notional||0),0),0);
     updateConsensusBar(longNot, shortNot);
 
-    // plota marcadores iniciais (entradas existentes)
-    const ts = now() - 300; // 5min atrás
+    const ts = now() - 300;
     whales.forEach(w=>{
       w.positions.forEach(p=>{
         if(p.coin === currentSymbol){
@@ -594,7 +599,11 @@ async function loadWhalesFromAlerts(){
 
     renderRightPanel();
     updateTopbarWhales();
-  } catch(e){ console.warn('loadWhalesFromAlerts:', e); }
+  } catch(e){
+    lastPollError = `Falha ao carregar alerts.json: ${e.message||e}`;
+    console.warn('loadWhalesFromAlerts:', e);
+    renderRightPanel();
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -602,19 +611,31 @@ async function loadWhalesFromAlerts(){
 // ══════════════════════════════════════════════════════════════════
 function startPollLoop(){
   clearInterval(pollTimer);
-  // poll imediato para baleias com endereço
   pollAllWhales();
   pollTimer = setInterval(pollAllWhales, POLL_INTERVAL);
 }
 
 async function pollAllWhales(){
-  // limita a top 15 para não sobrecarregar
   const toCheck = whales.filter(w=>w.address&&w.address.length>10).slice(0,15);
+  statusSummary.polled = 0;
+  lastPollRun = Date.now();
+
+  if(!toCheck.length){
+    lastPollError = whales.length ? 'Nenhuma baleia com address disponível em data/alerts.json. Rode o tracker atualizado.' : 'Nenhuma baleia carregada.';
+    renderRightPanel();
+    updateTopbarWhales();
+    return;
+  }
+
+  lastPollError = '';
   for(const whale of toCheck){
     try {
       await pollWhale(whale);
-      await sleep(200);
-    } catch(e){}
+      statusSummary.polled += 1;
+      await sleep(160);
+    } catch(e){
+      lastPollError = `Falha no polling: ${e.message||e}`;
+    }
   }
   renderRightPanel();
   updateTopbarWhales();
@@ -626,6 +647,7 @@ async function pollWhale(whale){
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({type:'clearinghouseState', user: whale.address})
   });
+  if(!r.ok) throw new Error(`clearinghouseState HTTP ${r.status}`);
   const data = await r.json();
   const prev = whaleSnapshots[whale.address];
 
@@ -753,8 +775,12 @@ function updateConsensusBar(longNot, shortNot){
 
 function updateTopbarWhales(){
   const symWhales = whales.filter(w=>w.positions.some(p=>p.coin===currentSymbol));
-  const longs  = symWhales.filter(w=>w.bias==='LONG').length;
-  const shorts = symWhales.filter(w=>w.bias==='SHORT').length;
+  let longs = 0, shorts = 0;
+  symWhales.forEach(w=>{
+    const longNot = w.positions.filter(p=>p.coin===currentSymbol&&p.side==='LONG').reduce((a,p)=>a+(p.notional||0),0);
+    const shortNot = w.positions.filter(p=>p.coin===currentSymbol&&p.side==='SHORT').reduce((a,p)=>a+(p.notional||0),0);
+    if(longNot >= shortNot) longs += 1; else shorts += 1;
+  });
   document.getElementById('tb-wl').textContent = longs;
   document.getElementById('tb-ws').textContent = shorts;
 }
@@ -773,8 +799,9 @@ function renderRightPanel(){
   const container = document.getElementById('rp-content');
 
   if(currentRpTab==='positions'){
-    if(!whales.length){ container.innerHTML='<div class="rp-empty">Sem baleias carregadas.<br>Verifique data/alerts.json</div>'; return; }
-    container.innerHTML = whales.map((w,i)=>{
+    if(!whales.length){ const msg = lastPollError || 'Sem baleias carregadas. Verifique data/alerts.json'; container.innerHTML=`<div class="rp-empty">${msg}<br><br><span style="color:var(--muted);font-size:11px">loaded=${statusSummary.loaded} · withAddress=${statusSummary.withAddress} · polled=${statusSummary.polled}</span></div>`; return; }
+    const diag = `<div class="rp-empty" style="margin-bottom:10px;padding:10px 12px;text-align:left">Snapshot: ${statusSummary.loaded} baleias · endereços: ${statusSummary.withAddress} · polling: ${statusSummary.polled}<br><span style="color:var(--muted);font-size:11px">alerts=${lastAlertsLoad?new Date(lastAlertsLoad).toLocaleTimeString('pt-BR'):'—'} · poll=${lastPollRun?new Date(lastPollRun).toLocaleTimeString('pt-BR'):'—'}${lastPollError?` · erro: ${lastPollError}`:''}</span></div>`;
+    container.innerHTML = diag + whales.map((w,i)=>{
       const symPos = w.positions.filter(p=>p.coin===currentSymbol);
       const totalPnl = w.positions.reduce((s,p)=>s+p.upnl,0);
       const pnlCls   = totalPnl>=0?'pv':'nv';

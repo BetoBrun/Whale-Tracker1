@@ -405,7 +405,7 @@ main{max-width:1300px;margin:0 auto;padding:18px 24px 60px;display:grid;grid-tem
 <!-- ═══ OPÇÕES ═══ -->
 <div class="tab-content" id="tab-opcoes">
   <div class="opt-wrap" id="opt-wrap">
-    <div class="full empty"><span class="spin"></span>Carregando dados de opções…<br><span style="color:var(--muted)">aguardando data/options_data.json</span></div>
+    <div class="full empty"><span class="spin"></span>Carregando dados de opções (Deribit)…</div>
   </div>
 </div>
 
@@ -533,19 +533,10 @@ function setFilter(type,btn){currentFilter=type;document.querySelectorAll('.fb')
 // ── OPÇÕES ──
 function renderOpcoes(opt){
   const wrap=document.getElementById('opt-wrap');
-  if(!opt){
-    wrap.innerHTML=`<div class="full empty">Falha ao carregar data/options_data.json<br><span style="color:var(--red)">verifique se o arquivo existe no GitHub Pages</span><br><br><span style="color:var(--blue)">python options_analyzer.py</span> para gerar</div>`;
+  if(!opt||(!opt.BTC?.by_expiry&&!opt.ETH?.by_expiry)){
+    wrap.innerHTML=`<div class="full empty">Dados de opções ainda indisponíveis.<br><span style="color:var(--blue)">Será preenchido automaticamente pelo workflow.</span></div>`;
     return;
   }
-  if(!opt.BTC?.by_expiry&&!opt.ETH?.by_expiry){
-    const msg=opt.message||'sem vencimentos disponíveis';
-    wrap.innerHTML=`<div class="full empty">Opções indisponíveis no momento<br><span style="color:var(--muted)">${msg}</span><br><br><span style="color:var(--blue)">data/options_data.json</span> existe, mas sem conteúdo utilizável</div>`;
-    return;
-  }
-
-  const status=opt.status||'ok';
-  const statusLabel=status==='ok'?'DADOS AO VIVO':status==='partial'?'DADOS PARCIAIS':'FALLBACK';
-  const statusColor=status==='ok'?'var(--green)':status==='partial'?'var(--amber)':'var(--purple)';
 
   // badge
   const btcNextMP=opt.BTC?.next_max_pain||0;
@@ -560,7 +551,7 @@ function renderOpcoes(opt){
 
   // tabs BTC/ETH
   html+=`<div class="full" style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-    <div class="sec-title" style="margin:0">Análise de Opções — Deribit</div><div style="font-family:var(--mono);font-size:10px;color:${statusColor};padding:4px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02)">${statusLabel}${opt.timestamp?` · upd ${String(opt.timestamp).slice(11,16)} UTC`:''}</div>
+    <div class="sec-title" style="margin:0">Análise de Opções — Deribit</div>
     <div style="display:flex;gap:5px;margin-left:auto">
       <button class="exp-btn active" id="cur-btc-btn" onclick="switchCurrency('BTC',this)">BTC</button>
       <button class="exp-btn" id="cur-eth-btn" onclick="switchCurrency('ETH',this)">ETH</button>
@@ -699,7 +690,7 @@ function snc(s){return s>0?'pos':s<0?'neg':'neu';}
 
 function renderMercado(ctx,hist){
   const wrap=document.getElementById('mkt-wrap');
-  if(!ctx){wrap.innerHTML=`<div class="full empty">data/market_context.json não encontrado<br><span style="color:var(--blue)">python market_context.py</span> para gerar</div>`;return;}
+  if(!ctx){wrap.innerHTML=`<div class="full empty">Contexto de mercado ainda indisponível.<br><span style="color:var(--blue)">Será preenchido automaticamente pelo workflow.</span></div>`;return;}
   const ms=ctx.market_score||{},bn=ctx.binance||{},sp=ctx.spot_flows||{},liq=ctx.liquidations||{},opt=ctx.options||{},hl=ctx.hl_summary||{};
   const btcBn=bn.BTC||{},btcLiq=liq.BTC||{},btcFlow=sp.BTC||{};
   const score=ms.total_score||0,bias=ms.bias||'NEUTRO',bColor=biasColor(bias);
@@ -899,16 +890,16 @@ async function loadMarket(){
 }
 async function loadOptions(){
   try{
-    const r=await fetch(OPT_URL+'?t='+Date.now(),{cache:'no-store'});
-    if(!r.ok){renderOpcoes({status:'missing',message:'HTTP '+r.status});return;}
+    const r=await fetch(OPT_URL+'?t='+Date.now());
+    if(!r.ok){optData=null;renderOpcoes(null);return;}
     const data=await r.json();
     optData=data;
     renderOpcoes(data);
   }catch(e){
-    renderOpcoes({status:'error',message:(e&&e.message)?e.message:'erro desconhecido'});
+    optData=null;
+    renderOpcoes(null);
   }
 }
-
 
 loadData();loadSpikes();loadMarket();loadOptions();
 setInterval(loadData,RELOAD_MS);setInterval(loadSpikes,SPIKE_MS);setInterval(loadMarket,MKT_MS);setInterval(loadOptions,OPT_MS);

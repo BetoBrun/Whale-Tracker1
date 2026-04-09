@@ -113,6 +113,7 @@ def _build_entry(snap: dict, sig: dict, all_pos: list) -> dict:
 
         whale_positions.append({
             "display":        entry["display"],
+            "address":        entry.get("address", ""),
             "quality_score":  round(float(entry.get("quality_score", 0)), 3),
             "consistency_score": perf["consistency_score"],
             "total_notional": round(total_not, 0),
