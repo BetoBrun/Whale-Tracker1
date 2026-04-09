@@ -1,5 +1,51 @@
 {
-  "timestamp": "2026-04-09 20:12:57",
-  "BTC": {},
-  "ETH": {}
+  "generated_at": "2026-04-09T00:00:00Z",
+  "BTC": {
+    "spot_price": 0,
+    "next_max_pain": 0,
+    "by_expiry": {
+      "16APR26": {
+        "max_pain": 0,
+        "max_pain_dist": 0.0,
+        "gex_regime": "NEUTRO",
+        "vol_skew": 0.0,
+        "skew_signal": "NEUTRO",
+        "put_call_ratio": 1.0,
+        "call_wall": 0,
+        "put_wall": 0,
+        "dealer_hedge_low": 0,
+        "dealer_hedge_high": 0,
+        "oi_calls": [],
+        "oi_puts": [],
+        "gex_calls": [],
+        "gex_puts": []
+      }
+    },
+    "status": "placeholder",
+    "reason": "fallback inicial"
+  },
+  "ETH": {
+    "spot_price": 0,
+    "next_max_pain": 0,
+    "by_expiry": {
+      "16APR26": {
+        "max_pain": 0,
+        "max_pain_dist": 0.0,
+        "gex_regime": "NEUTRO",
+        "vol_skew": 0.0,
+        "skew_signal": "NEUTRO",
+        "put_call_ratio": 1.0,
+        "call_wall": 0,
+        "put_wall": 0,
+        "dealer_hedge_low": 0,
+        "dealer_hedge_high": 0,
+        "oi_calls": [],
+        "oi_puts": [],
+        "gex_calls": [],
+        "gex_puts": []
+      }
+    },
+    "status": "placeholder",
+    "reason": "fallback inicial"
+  }
 }
