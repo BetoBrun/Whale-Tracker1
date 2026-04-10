@@ -1,73 +1,143 @@
-name: Hourly Whale Tracker
+name: Whale Tracker (Hourly)
 
 on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run even if recent'
+        required: false
+        default: 'false'
+
+env:
+  PYTHONUNBUFFERED: "1"
+  FORCE_RUN: ${{ github.event.inputs.force_run || 'false' }}
 
 jobs:
-  run-tracker:
+  track:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
     permissions:
       contents: write
-    timeout-minutes: 15
-
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Python
+          fetch-depth: 1
+      
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: 'pip'
-
+      
       - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Ensure fallback files
         run: |
-          mkdir -p data logs
-          [ -f data/spike_alerts.json ] || echo '[]' > data/spike_alerts.json
-          [ -f data/spike_state.json ] || echo '{"timestamp":"'$(date -u +%Y-%m-%d\ %H:%M:%S)'","addresses":[],"positions":{}}' > data/spike_state.json
-          [ -f data/options_data.json ] || echo '{"timestamp":"'$(date -u +%Y-%m-%d\ %H:%M:%S)'","BTC":{"status":"empty","spot_price":0,"total_call_oi":0,"total_put_oi":0,"put_call_ratio":0,"call_pct":0,"put_pct":0,"next_expiry":null,"next_max_pain":0,"by_expiry":{},"top_calls":[],"top_puts":[]},"ETH":{"status":"empty","spot_price":0,"total_call_oi":0,"total_put_oi":0,"put_call_ratio":0,"call_pct":0,"put_pct":0,"next_expiry":null,"next_max_pain":0,"by_expiry":{},"top_calls":[],"top_puts":[]}}' > data/options_data.json
-          [ -f data/market_context.json ] || echo '{"timestamp":"'$(date -u +%Y-%m-%d\ %H:%M:%S)'","market_score":{"total_score":0,"bias":"NEUTRO","components":{}},"binance":{"BTC":{"funding_rate":0,"oi_usd":0,"long_ratio":0.5},"ETH":{"funding_rate":0,"oi_usd":0,"long_ratio":0.5}},"spot_flows":{"BTC":{"basis":0},"ETH":{"basis":0}},"liquidations":{"BTC":{"long_liq_usd":0,"short_liq_usd":0,"liq_bias":"NEUTRO"},"ETH":{"long_liq_usd":0,"short_liq_usd":0,"liq_bias":"NEUTRO"}},"options":{"max_pain":0,"put_call_ratio":0,"call_pct":50,"put_pct":50,"top_calls":[],"top_puts":[]},"hl_summary":{"btc_funding":0,"btc_oi_usd":0}}' > data/market_context.json
-          [ -f data/market_context_history.json ] || echo '[]' > data/market_context_history.json
-
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Ensure directories exist
+        run: mkdir -p data logs
+      
+      - name: Pre-flight check
+        id: preflight
+        run: |
+          if [ "$FORCE_RUN" != "true" ] && [ -f data/alerts.json ]; then
+            LAST_MOD=$(stat -c %Y data/alerts.json 2>/dev/null || echo 0)
+            NOW=$(date +%s)
+            DIFF=$((NOW - LAST_MOD))
+            if [ $DIFF -lt 3000 ] && [ $LAST_MOD -ne 0 ]; then
+              echo "⚠️ Last run was $DIFF seconds ago, skipping"
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          echo "skip=false" >> $GITHUB_OUTPUT
+      
       - name: Run tracker
+        if: steps.preflight.outputs.skip != 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ENABLED: ${{ secrets.TELEGRAM_ENABLED || 'true' }}
         run: python run_once.py
-
+      
       - name: Run market context
+        if: steps.preflight.outputs.skip != 'true'
         run: python market_context.py
         continue-on-error: true
-
+      
       - name: Run options analyzer
+        if: steps.preflight.outputs.skip != 'true'
         run: python options_analyzer.py
         continue-on-error: true
-
+      
       - name: Validate outputs
+        if: steps.preflight.outputs.skip != 'true'
         run: |
-          python - <<'PY'
-import json
-for f in ['data/alerts.json','data/market_context.json','data/options_data.json']:
-    with open(f, encoding='utf-8') as fp:
-        json.load(fp)
-    print('ok', f)
-PY
-
-      - name: Commit data files
+          python << 'EOF'
+          import json
+          import sys
+          
+          files = ['data/alerts.json', 'data/market_context.json', 'data/options_data.json']
+          errors = []
+          
+          for f in files:
+              try:
+                  with open(f) as fp:
+                      data = json.load(fp)
+                      # Check schema version
+                      if "schema_version" not in data and f != 'data/alerts.json':
+                          errors.append(f'{f}: missing schema_version')
+                      print(f'✓ {f}: valid')
+              except Exception as e:
+                  errors.append(f'{f}: {e}')
+                  print(f'✗ {f}: {e}')
+          
+          if errors:
+              print('\nValidation failed!')
+              sys.exit(1)
+          print('\nAll files valid!')
+          EOF
+      
+      - name: Commit changes
+        if: steps.preflight.outputs.skip != 'true'
         run: |
-          git config user.name  "github-actions[bot]"
+          git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/whale_snapshots.csv data/alerts.json data/options_data.json data/market_context.json data/market_context_history.json || true
-          git add data/last_telegram_signal.json || true
-          git add data/snapshot_*.png || true
-          git add logs/*.log || true
-          git diff --cached --quiet || git commit -m "tracker: $(date -u +'%Y-%m-%d %H:%M') UTC"
-          git pull --rebase || true
-          git push || true
+          
+          git add data/ logs/ || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          TIMESTAMP=$(date -u +'%Y-%m-%d %H:%M UTC')
+          git commit -m "tracker: ${TIMESTAMP} [run ${{ github.run_number }}]"
+          
+          # Push with retry
+          for i in 1 2 3; do
+            git pull --rebase && git push && break
+            echo "Retry $i..."
+            sleep $((2**i))
+          done
+      
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 7
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Whale Tracker" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Skipped: ${{ steps.preflight.outputs.skip }}" >> $GITHUB_STEP_SUMMARY
