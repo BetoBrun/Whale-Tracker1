@@ -349,6 +349,7 @@ main{max-width:1300px;margin:0 auto;padding:18px 24px 60px;display:grid;grid-tem
   <button class="tab-btn" onclick="switchTab('opcoes',this)">🎯 OPÇÕES<span class="tbadge tbg" id="opt-badge"></span></button>
   <button class="tab-btn" onclick="switchTab('mercado',this)">📊 MERCADO<span class="tbadge tbb" id="mkt-badge"></span></button>
   <button class="tab-btn" onclick="switchTab('spikes',this)">⚡ SPIKES<span class="tbadge tbo" id="spike-badge"></span></button>
+  <button class="tab-btn" onclick="switchTab('hlnative',this)">🧠 HL NATIVE</button>
   <button class="tab-btn" onclick="switchTab('performers',this)">🏆 PERFORMERS<span class="tbadge tbp">3M</span></button>
   <button class="tab-btn" onclick="switchTab('zonas',this)">ZONAS</button>
   <button class="tab-btn" onclick="switchTab('posicoes',this)">POSIÇÕES</button>
@@ -442,6 +443,24 @@ main{max-width:1300px;margin:0 auto;padding:18px 24px 60px;display:grid;grid-tem
   </div>
 </div>
 
+<!-- ═══ HL NATIVE ═══ -->
+<div class="tab-content" id="tab-hlnative">
+  <div class="full" style="display:flex;flex-direction:column;gap:12px">
+    <div class="panel" style="padding:12px 14px">
+      <div class="sp-title">Insights nativos da Hyperliquid</div>
+      <div id="hln-meta" style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:6px">Aguardando dados…</div>
+    </div>
+    <div id="hln-insights" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px"></div>
+    <div class="panel" style="padding:12px 14px">
+      <div class="sp-title">Distribuição por faixa de posição</div>
+      <div id="hln-posdist" class="feed-scroll" style="max-height:320px"></div>
+    </div>
+    <div class="panel" style="padding:12px 14px">
+      <div class="sp-title">Distribuição por faixa de PnL</div>
+      <div id="hln-pnldist" class="feed-scroll" style="max-height:320px"></div>
+    </div>
+  </div>
+
 <!-- ═══ PERFORMERS ═══ -->
 <div class="tab-content" id="tab-performers">
   <div class="perf-wrap" id="perf-wrap"><div class="full empty"><span class="spin"></span>Carregando…</div></div>
@@ -462,6 +481,7 @@ main{max-width:1300px;margin:0 auto;padding:18px 24px 60px;display:grid;grid-tem
 const DATA_URL='./data/alerts.json', SPIKE_URL='./data/spike_alerts.json';
 const MKT_URL='./data/market_context.json', MKT_HIST='./data/market_context_history.json';
 const OPT_URL='./data/options_data.json';
+const HLN_URL='./data/hl_native_insights.json';
 const RELOAD_MS=5*60*1000, SPIKE_MS=60*1000, MKT_MS=2*60*1000, OPT_MS=5*60*1000;
 
 let allAlerts=[],allSpikes=[],spikeFilter='all',currentFilter='all',whaleFilter='all';
@@ -863,6 +883,22 @@ function wf(type,btn){whaleFilter=type;document.querySelectorAll('.wfb').forEach
 function toggleW(name,hdr){const card=hdr.closest('.whale-card'),body=card.querySelector('.pos-tbl-wrap'),chev=hdr.querySelector('.wh-chev'),open=body.style.display==='block';body.style.display=open?'none':'block';chev.classList.toggle('open',!open);hdr.classList.toggle('open',!open);if(open)openWhales.delete(name);else openWhales.add(name);}
 function doCopy(text,btn){navigator.clipboard.writeText(text).catch(()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);}).finally(()=>{btn.classList.add('ok');const p=btn.innerHTML;btn.innerHTML='✓';setTimeout(()=>{btn.classList.remove('ok');btn.innerHTML=p},2000)});}
 
+// ── HL NATIVE ──
+function renderHlnative(data){
+  const meta=document.getElementById('hln-meta'), insights=document.getElementById('hln-insights'), posdist=document.getElementById('hln-posdist'), pnldist=document.getElementById('hln-pnldist');
+  if(!meta||!insights||!posdist||!pnldist)return;
+  if(!data||!data.assets){meta.textContent='data/hl_native_insights.json não encontrado'; insights.innerHTML='<div class="empty">Sem dados nativos.</div>'; posdist.innerHTML='<div class="empty">Sem dados.</div>'; pnldist.innerHTML='<div class="empty">Sem dados.</div>'; return;}
+  meta.textContent=`${data.generated_at||'—'} | fonte: ${data.source||'hyperliquid_native'} | status: ${data.status||'—'}`;
+  const assetCards=['BTC','ETH','HYPE'].map(sym=>{const a=(data.assets||{})[sym]||{};const t=a.trade_insight||{};const bias=t.bias||'NEUTRO';const bcls=bias==='BULLISH'?'side-l':bias==='BEARISH'?'side-s':'side-n'; const notes=(t.notes||[]).map(n=>`<li>${n}</li>`).join('')||'<li>Sem observações.</li>';return `<div class="panel" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-weight:700;font-size:15px">${sym}</div><div class="${bcls}" style="padding:4px 8px;border-radius:999px;font-size:11px">${bias}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--mono)"><div><div class="pcpl">Score</div><div class="pcpv">${t.score??0}</div></div><div><div class="pcpl">Confiança</div><div class="pcpv">${t.confidence??0}</div></div><div><div class="pcpl">Posições</div><div class="pcpv">${t.positions_count??0}</div></div><div><div class="pcpl">Alerts</div><div class="pcpv">${t.alerts_count??0}</div></div><div><div class="pcpl">Long US$</div><div class="pcpv g">${fmt(t.long_position_usd||0)}</div></div><div><div class="pcpl">Short US$</div><div class="pcpv r">${fmt(t.short_position_usd||0)}</div></div><div><div class="pcpl">Near liq</div><div class="pcpv">${t.near_liq_count??0}</div></div><div><div class="pcpl">PnL médio</div><div class="pcpv">${(t.avg_unrealized_pnl_pct_proxy??0).toFixed? t.avg_unrealized_pnl_pct_proxy.toFixed(2)+'%':t.avg_unrealized_pnl_pct_proxy}</div></div></div><ul style="margin:10px 0 0 18px;color:var(--text2);font-size:12px;line-height:1.5">${notes}</ul></div>`;}).join('');
+  insights.innerHTML=assetCards;
+  const distTable=(rows,title)=>!rows||!rows.length?'<div class="empty">Sem dados.</div>':`<table class="pos-tbl"><thead><tr><th>Faixa</th><th class="r">Addr c/ posição</th><th class="r">Long%</th><th class="r">Short%</th><th>Bias</th><th class="r">Profit%</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.group_name}</td><td class="r">${r.position_address_count}</td><td class="r g">${(r.long_position_usd_percent||0).toFixed(1)}%</td><td class="r r">${(r.short_position_usd_percent||0).toFixed(1)}%</td><td>${r.bias_remark||'—'}</td><td class="r">${(r.profit_address_percent||0).toFixed(1)}%</td></tr>`).join('')}</tbody></table>`;
+  posdist.innerHTML=distTable(data.position_distribution||[]);
+  pnldist.innerHTML=distTable(data.pnl_distribution||[]);
+}
+async function loadHlnative(){
+  try{const r=await fetch(HLN_URL+'?t='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);const data=await r.json();renderHlnative(data);}catch(e){renderHlnative(null);}
+}
+
 // ── LOAD ──
 async function loadData(){
   const dot=document.getElementById('live-dot');
@@ -892,8 +928,8 @@ async function loadOptions(){
   try{const r=await fetch(OPT_URL+'?t='+Date.now());if(!r.ok)return;const data=await r.json();optData=data;renderOpcoes(data);}catch(e){renderOpcoes(null);}
 }
 
-loadData();loadSpikes();loadMarket();loadOptions();
-setInterval(loadData,RELOAD_MS);setInterval(loadSpikes,SPIKE_MS);setInterval(loadMarket,MKT_MS);setInterval(loadOptions,OPT_MS);
+loadData();loadSpikes();loadMarket();loadOptions();loadHlnative();
+setInterval(loadData,RELOAD_MS);setInterval(loadSpikes,SPIKE_MS);setInterval(loadMarket,MKT_MS);setInterval(loadOptions,OPT_MS);setInterval(loadHlnative,RELOAD_MS);
 </script>
 </body>
 </html>
