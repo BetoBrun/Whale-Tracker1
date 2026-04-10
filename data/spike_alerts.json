@@ -1,5 +1,48 @@
 [
   {
+    "id": "2026-04-10 17:10:59_0",
+    "type": "SPIKE_SHORT",
+    "display": "0xecb63c…",
+    "qs": 0.899,
+    "coin": "BTC",
+    "side": "SHORT",
+    "notional": 7341581.809224001,
+    "prev_notional": 4633004.622303,
+    "delta_pct": 58.5,
+    "entry_px": 72752.8,
+    "ts": "2026-04-10 17:10:59",
+    "btc": 72786.5,
+    "severity": "alta"
+  },
+  {
+    "id": "2026-04-10 17:10:59_1",
+    "type": "SIDE_FLIP",
+    "display": "Auros",
+    "qs": 0.918,
+    "coin": "HYPE",
+    "side": "LONG",
+    "prev_side": "SHORT",
+    "notional": 118508.91231,
+    "ts": "2026-04-10 17:10:59",
+    "btc": 72786.5,
+    "severity": "alta"
+  },
+  {
+    "id": "2026-04-10 17:10:59_2",
+    "type": "SPIKE_LONG",
+    "display": "0x469e9a…",
+    "qs": 0.888,
+    "coin": "ETH",
+    "side": "LONG",
+    "notional": 22378100.0,
+    "prev_notional": 11740901.249,
+    "delta_pct": 90.6,
+    "entry_px": 2237.81,
+    "ts": "2026-04-10 17:10:59",
+    "btc": 72786.5,
+    "severity": "critica"
+  },
+  {
     "id": "2026-04-10 16:35:23_0",
     "type": "SPIKE_SHORT",
     "display": "0xecb63c…",

@@ -1,38 +1,38 @@
 {
-  "timestamp": "2026-04-10 13:53:07",
+  "timestamp": "2026-04-10 17:10:59",
   "asset": "BTC",
   "bias": "NEUTRO",
-  "score": 0.04,
+  "score": 0.13,
   "scores": {
-    "whales": -0.83,
-    "funding": -0.12,
-    "price_action": 0.99,
+    "whales": -0.08,
+    "funding": -0.02,
+    "price_action": 0.23,
     "basis": 0.0,
     "liq_pressure": 0.0
   },
   "metrics": {
-    "mark_price": 72165.0,
-    "open_interest": 27793.67498,
-    "funding_rate": 1.25e-05,
-    "day_return_pct": 1.98,
-    "whales_long_pct": 45.86,
-    "whales_short_pct": 54.14,
-    "active_whales": 33
+    "mark_price": 72785.0,
+    "open_interest": 27963.41742,
+    "funding_rate": 2.1766e-06,
+    "day_return_pct": 0.468,
+    "whales_long_pct": 49.59,
+    "whales_short_pct": 50.41,
+    "active_whales": 38
   },
   "drivers": [
     {
       "label": "Whale consensus",
-      "value": -8.28,
+      "value": -0.82,
       "direction": -1
     },
     {
       "label": "Funding",
-      "value": 0.0013,
+      "value": 0.0002,
       "direction": -1
     },
     {
       "label": "BTC day return",
-      "value": 1.98,
+      "value": 0.468,
       "direction": 1
     }
   ]
