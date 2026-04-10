@@ -1,195 +1,273 @@
 # ╔══════════════════════════════════════════════════════════════╗
-# ║            🐋 WHALE TRACKER — MÓDULO DE BACKTEST            ║
+# ║ 🐋 WHALE TRACKER — MÓDULO DE API                           ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-import numpy as np
+import time
+import requests
 import pandas as pd
-from scipy import stats
-from scipy.stats import binomtest, chi2_contingency, fisher_exact
-from tabulate import tabulate
-from config import HORIZON_H
-
-
-# ══════════════════════════════════════════════════════════════
-# SIMULAÇÃO REALISTA
-# ══════════════════════════════════════════════════════════════
-
-def simulate_realistic(btc_df: pd.DataFrame, n: int,
-                       true_accuracy: float,
-                       seed: int = 42) -> pd.DataFrame:
-    """
-    Simulação com preços reais da Hyperliquid.
-    Intensidade do sinal acoplada ao retorno absoluto da vela,
-    refletindo o comportamento esperado de baleias direcionais.
-    """
-    np.random.seed(seed)
-    avail    = len(btc_df) - 1
-    n        = min(n, avail)
-    abs_rets = btc_df["retorno_pct"].abs().iloc[:avail]
-    ret_pct  = abs_rets.rank(pct=True).values
-
-    rows = []
-    for i in range(n):
-        ret_real   = btc_df.iloc[i]["retorno_pct"]
-        candle     = btc_df.iloc[i]
-        up         = ret_real > 0
-        conviction = ret_pct[i]
-        intensity  = np.clip(62 + conviction * 30 + np.random.normal(0, 3), 55, 97)
-
-        correct = np.random.random() < true_accuracy
-        signal  = ("BULLISH" if up else "BEARISH") if correct \
-             else ("BEARISH" if up else "BULLISH")
-
-        if signal == "BULLISH":
-            long_pct, short_pct = intensity, 100 - intensity
-        else:
-            short_pct, long_pct = intensity, 100 - intensity
-
-        resultado = (
-            "ACERTO" if (signal == "BULLISH" and ret_real > 0) or
-                        (signal == "BEARISH" and ret_real < 0)
-            else "ERRO"
-        )
-
-        rows.append({
-            "timestamp":     candle["timestamp"],
-            "btc_price_t0":  candle["open"],
-            "signal":        signal,
-            "long_pct":      round(long_pct,  2),
-            "short_pct":     round(short_pct, 2),
-            "total_long":    float(np.random.uniform(10e6, 80e6)),
-            "total_short":   float(np.random.uniform(10e6, 80e6)),
-            "active_whales": int(np.random.randint(5, 15)),
-            "btc_price_t4":  btc_df.iloc[i + 1]["close"],
-            "retorno_pct":   round(ret_real, 4),
-            "resultado":     resultado,
-        })
-
-    return pd.DataFrame(rows)
-
+from datetime import datetime, timedelta
+from config import (
+    INFO_URL, LEADERBOARD_URL,
+    MIN_PNL_ALL_TIME, MIN_NOTIONAL_POS,
+    BTC_FAMILY, ETH_FAMILY, TOP_N,
+)
 
 # ══════════════════════════════════════════════════════════════
-# TESTES ESTATÍSTICOS
+# HELPERS INTERNOS
 # ══════════════════════════════════════════════════════════════
 
-def run_tests(df_dir: pd.DataFrame,
-              taxa: float, total: int, acertos: int,
-              is_sim: bool = False,
-              true_acc: float = None,
-              label: str = "",
-              verbose: bool = True) -> dict:
-    """
-    Três testes independentes:
-      1. Binomial     — taxa global > 50%?
-      2. Chi² Direcional — sinal discrimina direção BTC?
-      3. Spearman     — intensidade prediz magnitude?
-    """
-    p_hat        = taxa / 100
-    se           = np.sqrt(p_hat * (1 - p_hat) / total)
-    ci_lo, ci_hi = (p_hat - 1.96*se)*100, (p_hat + 1.96*se)*100
+def _post(payload: dict, retries: int = 3) -> dict:
+    headers = {"Content-Type": "application/json"}
+    for attempt in range(retries):
+        try:
+            r = requests.post(INFO_URL, json=payload, headers=headers, timeout=15)
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            if attempt == retries - 1:
+                raise
+            time.sleep(1.5 * (attempt + 1))
 
-    # 1 — Binomial
-    res   = binomtest(acertos, total, p=0.5, alternative="greater")
-    p_bin = res.pvalue
 
-    # 2 — Chi² Direcional
-    df_d = df_dir.copy()
-    df_d["ret_dir"] = (df_d["retorno_pct"] > 0).map({True: "UP", False: "DOWN"})
-    ct = pd.crosstab(df_d["signal"], df_d["ret_dir"])
-    for col in ["UP", "DOWN"]:
-        if col not in ct.columns:
-            ct[col] = 0
-    ct = ct[["UP", "DOWN"]]
+def _get_raw_leaderboard() -> list:
+    r = requests.get(LEADERBOARD_URL, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    rows = data.get("leaderboardRows")
+    if rows is None:
+        for key in ("leaderboard", "data", "result"):
+            rows = data.get(key)
+            if rows is not None:
+                break
+    if rows is None:
+        raise ValueError(f"Chave de leaderboard não encontrada. Keys: {list(data.keys())}")
+    return rows
+
+
+def _f(d: dict, k: str) -> float:
+    try:
+        return float(d.get(k) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _parse_entry(entry: dict) -> dict | None:
+    if not isinstance(entry, dict):
+        return None
+    addr = entry.get("ethAddress", "")
+    if not addr or len(addr) < 10:
+        return None
+
+    wp_map: dict[str, dict] = {}
+    for item in entry.get("windowPerformances", []):
+        if isinstance(item, (list, tuple)) and len(item) == 2:
+            name, perf = item
+            if isinstance(perf, dict):
+                wp_map[name] = perf
+
+    pnl_all     = _f(wp_map.get("allTime", {}), "pnl")
+    pnl_month   = _f(wp_map.get("month",   {}), "pnl")
+    pnl_week    = _f(wp_map.get("week",    {}), "pnl")
+    pnl_day     = _f(wp_map.get("day",     {}), "pnl")
+    vol_day     = _f(wp_map.get("day",     {}), "vlm")
+    roi_all     = _f(wp_map.get("allTime", {}), "roi")
+    roi_month   = _f(wp_map.get("month",   {}), "roi")
+    roi_week    = _f(wp_map.get("week",    {}), "roi")
+
+    # campo "quarter" quando disponível na API, senão estima como 3x mês
+    pnl_quarter_raw = _f(wp_map.get("quarter", {}), "pnl")
+    roi_quarter     = _f(wp_map.get("quarter", {}), "roi")
+    if pnl_quarter_raw == 0 and pnl_month != 0:
+        pnl_quarter_raw  = pnl_month * 3
+        quarter_estimated = True
+    else:
+        quarter_estimated = False
+
+    # ── consistency_score (0–100) ─────────────────────────────────────────
+    score = 0.0
+    score += 25 if pnl_month > 0 else 0
+    score += 15 if pnl_week  > 0 else 0
+    score += 10 if pnl_day   > 0 else 0
+    if roi_month > 0.10:   score += 20
+    elif roi_month > 0.05: score += 12
+    elif roi_month > 0:    score +=  5
+    if roi_week > 0.05:    score += 15
+    elif roi_week > 0.02:  score +=  8
+    elif roi_week > 0:     score +=  4
+    if pnl_quarter_raw > 0:
+        score += 15
+    consistency_score = min(round(score, 1), 100.0)
 
     try:
-        chi2_v, p_chi, _, expected = chi2_contingency(ct)
-        if (expected < 5).any():
-            _, p_chi  = fisher_exact(ct.values[:2, :2])
-            chi2_v    = float("nan")
-            test_name = "Fisher"
-        else:
-            test_name = "Chi²"
-    except Exception:
-        chi2_v, p_chi, test_name = 0.0, 1.0, "Chi²"
+        acct_val = float(entry.get("accountValue") or 0)
+    except (TypeError, ValueError):
+        acct_val = 0.0
 
-    bull_rows = df_d[df_d["signal"] == "BULLISH"]
-    bear_rows = df_d[df_d["signal"] == "BEARISH"]
-    bull_up   = (bull_rows["ret_dir"] == "UP").mean()   * 100 if len(bull_rows) else 0
-    bear_down = (bear_rows["ret_dir"] == "DOWN").mean() * 100 if len(bear_rows) else 0
-
-    # 3 — Spearman
-    df_d["long_dir"] = df_d.apply(
-        lambda r: r["long_pct"] if r["signal"] == "BULLISH" else -r["short_pct"],
-        axis=1)
-    rho, p_sp = stats.spearmanr(df_d["long_dir"],
-                                df_d["retorno_pct"].fillna(0))
-
-    ret_stats = df_d.groupby("signal")["retorno_pct"].agg(["mean","std","count"])
-    df_d["dominante"] = df_d[["long_pct","short_pct"]].max(axis=1)
-    intensity = {}
-    for thr in [62, 65, 68, 72, 75, 80]:
-        sub = df_d[df_d["dominante"] >= thr]
-        if len(sub) >= 5:
-            intensity[thr] = {"taxa": sub["acerto"].mean()*100, "n": len(sub)}
-
-    valid = sum([p_bin < 0.05, p_chi < 0.05, p_sp < 0.05])
-
-    if verbose:
-        tag = f" [{label}]" if label else (" [SIMULAÇÃO]" if is_sim else " [REAL]")
-        print(f"\n{'═'*65}")
-        print(f"  📊 TESTES ESTATÍSTICOS{tag}")
-        print(f"{'═'*65}")
-        print(f"  Sinais : {total}   Acertos : {acertos}   Taxa : {taxa:.1f}%")
-        print(f"  IC 95% : [{ci_lo:.1f}%, {ci_hi:.1f}%]")
-
-        print(f"\n  🎲 1. Binomial  (H₀: acerto = 50%)")
-        print(f"     p={p_bin:.4f}  " +
-              ("✅ Sinal bate o random" if p_bin < 0.05 else "❌ Pode ser sorte"))
-
-        nan_chi = isinstance(chi2_v, float) and np.isnan(chi2_v)
-        chi_str = f"χ²={chi2_v:.3f}  " if not nan_chi else ""
-        print(f"\n  χ²  2. {test_name} Direcional")
-        print(f"     BULLISH → BTC↑ : {bull_up:5.1f}%  {'✅' if bull_up>52 else '⚠️ ' if bull_up>50 else '❌'}")
-        print(f"     BEARISH → BTC↓ : {bear_down:5.1f}%  {'✅' if bear_down>52 else '⚠️ ' if bear_down>50 else '❌'}")
-        print(f"     {chi_str}p={p_chi:.4f}  " +
-              ("✅ Discrimina direção" if p_chi < 0.05 else "❌ Não discrimina"))
-
-        print(f"\n  ρ   3. Spearman  (intensidade × retorno)")
-        print(f"     ρ={rho:.3f}  p={p_sp:.4f}  " +
-              ("✅ Convicção → retorno maior" if p_sp < 0.05 else "❌ Intensidade não prediz"))
-
-        print(f"\n  💰 Retorno médio {HORIZON_H}h:\n")
-        print(tabulate(ret_stats.round(4),
-                       headers=["Sinal","Média%","Std%","N"],
-                       tablefmt="rounded_outline"))
-
-        print(f"\n  📈 Acerto por intensidade:")
-        for thr, v in intensity.items():
-            bar  = "█" * int(v["taxa"] / 5)
-            icon = "✅" if v["taxa"]>55 else "⚠️ " if v["taxa"]>50 else "❌"
-            print(f"     {icon} ≥{thr}%  {v['taxa']:5.1f}%  {bar}  (n={v['n']})")
-
-        verdicts = {
-            3: "🏆 SINAL ROBUSTO       — 3/3 testes",
-            2: "🟡 SINAL PROMISSOR     — 2/3 testes",
-            1: "⚠️  SINAL FRACO         — 1/3 testes",
-            0: "❌ SINAL NÃO VALIDADO  — 0/3 testes",
-        }
-        print(f"\n  {'─'*63}")
-        print(f"  VEREDICTO: {verdicts[valid]}")
-        if is_sim and true_acc:
-            exp    = 3 if true_acc >= 0.60 else 2 if true_acc >= 0.55 else 1
-            status = "✅ consistente" if valid >= exp else f"⚠️  esperado ≥{exp}/3"
-            print(f"  {status} com {true_acc*100:.0f}% de acerto real (n={total})")
-        print(f"  {'─'*63}\n")
+    display = entry.get("displayName") or (addr[:8] + "…")
 
     return {
-        "total": total, "acertos": acertos, "taxa": taxa,
-        "ci_lo": ci_lo, "ci_hi": ci_hi,
-        "p_binom": p_bin, "p_chi2": p_chi,
-        "chi2_val": chi2_v, "test_name": test_name,
-        "bull_up": bull_up, "bear_down": bear_down,
-        "rho": rho, "p_spear": p_sp,
-        "ret_stats": ret_stats, "intensity": intensity,
-        "valid_count": valid, "df_dir": df_d,
+        "address":            addr,
+        "display":            display,
+        "pnl_all":            pnl_all,
+        "pnl_month":          pnl_month,
+        "pnl_week":           pnl_week,
+        "pnl_day":            pnl_day,
+        "pnl_quarter":        round(pnl_quarter_raw, 0),
+        "quarter_estimated":  quarter_estimated,
+        "roi_all":            roi_all,
+        "roi_month":          round(roi_month, 4),
+        "roi_week":           round(roi_week, 4),
+        "roi_quarter":        round(roi_quarter, 4),
+        "vol_day":            vol_day,
+        "acct_val":           acct_val,
+        "consistency_score":  consistency_score,
     }
+
+
+def _quality_score(df: pd.DataFrame) -> pd.Series:
+    def rk(s): return s.rank(pct=True, ascending=True).fillna(0.5)
+    return (0.35 * rk(df["pnl_all"])   +
+            0.35 * rk(df["pnl_month"]) +
+            0.20 * rk(df["roi_all"])   +
+            0.10 * rk(df["vol_day"]))
+
+
+def _normalize_coin(coin: str) -> str:
+    if coin in BTC_FAMILY: return "BTC"
+    if coin in ETH_FAMILY: return "ETH"
+    return coin
+
+
+# ══════════════════════════════════════════════════════════════
+# FUNÇÕES PÚBLICAS
+# ══════════════════════════════════════════════════════════════
+
+def get_leaderboard(top_n: int = TOP_N) -> pd.DataFrame:
+    print(" 📥 Baixando leaderboard…", end=" ", flush=True)
+    raw = _get_raw_leaderboard()
+    print(f"✅ {len(raw):,} traders")
+
+    parsed = []
+    for entry in raw:
+        p = _parse_entry(entry)
+        if p and p["pnl_all"] >= MIN_PNL_ALL_TIME:
+            parsed.append(p)
+
+    if not parsed:
+        parsed = [p for p in (_parse_entry(e) for e in raw) if p]
+
+    print(f" 🔍 Após filtro PnL ≥ ${MIN_PNL_ALL_TIME:,.0f}: {len(parsed)} baleias")
+
+    df = pd.DataFrame(parsed)
+    df["quality_score"] = _quality_score(df)
+    return (df.sort_values("quality_score", ascending=False)
+              .drop_duplicates("address")
+              .head(top_n)
+              .reset_index(drop=True))
+
+
+def get_positions(address: str) -> pd.DataFrame:
+    data = _post({"type": "clearinghouseState", "user": address})
+    rows = []
+    for pos in data.get("assetPositions", []):
+        p        = pos.get("position", {})
+        size     = float(p.get("szi", 0) or 0)
+        entry_px = float(p.get("entryPx", 0) or 0)
+        upnl     = float(p.get("unrealizedPnl", 0) or 0)
+        lev      = float((p.get("leverage") or {}).get("value", 1) or 1)
+
+        if size == 0 or entry_px <= 0:
+            continue
+        notional = abs(size) * entry_px
+        if notional < MIN_NOTIONAL_POS:
+            continue
+
+        rows.append({
+            "coin":     _normalize_coin(p.get("coin", "")),
+            "side":     "LONG" if size > 0 else "SHORT",
+            "size":     abs(size),
+            "entry_px": entry_px,
+            "notional": notional,
+            "upnl":     upnl,
+            "leverage": lev,
+            "upnl_pct": (upnl / notional * 100) if notional > 0 else 0,
+        })
+
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df = (df.groupby(["coin", "side"])
+                .agg(notional=("notional", "sum"),
+                     size=("size", "sum"),
+                     entry_px=("entry_px", "mean"),
+                     upnl=("upnl", "sum"),
+                     leverage=("leverage", "mean"))
+                .reset_index()
+                .assign(upnl_pct=lambda d: d["upnl"] / d["notional"] * 100))
+    return df
+
+
+def get_btc_price() -> float:
+    try:
+        data = _post({"type": "allMids"})
+        if isinstance(data, dict):
+            for key in ("BTC", "UBTC", "BTC/USDC"):
+                if key in data:
+                    return float(data[key])
+    except Exception:
+        pass
+    r = requests.get(
+        "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+        timeout=10)
+    return float(r.json()["price"])
+
+
+def fetch_hl_candles(coin: str = "BTC", days: int = 90,
+                     interval: str = "4h") -> pd.DataFrame:
+    ms_map = {"1m": 60_000, "5m": 300_000, "15m": 900_000,
+              "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
+    ms_per = ms_map.get(interval, 14_400_000)
+    end_ms = int(datetime.utcnow().timestamp() * 1000)
+    st_ms  = end_ms - days * 86_400_000
+
+    print(f" 📥 Candles {coin}/{interval} Hyperliquid ({days}d)…",
+          end=" ", flush=True)
+
+    all_c, cur = [], st_ms
+    chunk = 500 * ms_per
+    while cur < end_ms:
+        end_c = min(cur + chunk, end_ms)
+        try:
+            r = requests.post(
+                INFO_URL,
+                json={"type": "candleSnapshot",
+                      "req": {"coin": coin, "interval": interval,
+                              "startTime": cur, "endTime": end_c}},
+                headers={"Content-Type": "application/json"},
+                timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            if isinstance(data, list):
+                all_c.extend(data)
+        except Exception as e:
+            print(f"\n ⚠️ chunk erro: {e}")
+        cur = end_c + 1
+        time.sleep(0.08)
+
+    print(f"✅ {len(all_c)} candles")
+    if not all_c:
+        raise ValueError(f"Nenhum candle para {coin}/{interval}")
+
+    rows = [{"timestamp": pd.to_datetime(c["t"], unit="ms"),
+             "open":   float(c.get("o", 0)),
+             "high":   float(c.get("h", 0)),
+             "low":    float(c.get("l", 0)),
+             "close":  float(c.get("c", 0)),
+             "volume": float(c.get("v", 0))}
+            for c in all_c if isinstance(c, dict)]
+
+    df = (pd.DataFrame(rows)
+          .drop_duplicates("timestamp")
+          .sort_values("timestamp")
+          .reset_index(drop=True))
+    df["retorno_pct"] = df["close"].pct_change(1).shift(-1) * 100
+    return df.dropna(subset=["retorno_pct"])

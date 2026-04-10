@@ -263,7 +263,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 // ══════════════════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════════════════
-const PRO_TOKEN    = 'YIELDLAB2024';
+const PRO_TOKEN    = 'YIELDLAB2024'; // gate visual apenas
 const HL_WS        = 'wss://api.hyperliquid.xyz/ws';
 const HL_REST      = 'https://api.hyperliquid.xyz/info';
 const ALERTS_URL   = './data/alerts.json';
@@ -330,6 +330,9 @@ const fmtP = n => (n>=0?'+':'')+n.toFixed(2)+'%';
 const fmtPnl = n => (n>=0?'+':'')+fmt(Math.abs(n));
 const now  = () => Math.floor(Date.now()/1000);
 const tsStr= () => new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+const bootstrapInfo = {alertsLoaded:0, withAddress:0, lastError:'', lastBootstrap:''};
+function setRpMessage(html){ const c=document.getElementById('rp-content'); if(c) c.innerHTML=`<div class="rp-empty">${html}</div>`; }
 
 // ══════════════════════════════════════════════════════════════════
 // INIT
@@ -558,16 +561,11 @@ function handleWsMessage(msg){
 // ══════════════════════════════════════════════════════════════════
 async function loadWhalesFromAlerts(){
   try {
-    const r = await fetch(ALERTS_URL+'?t='+Date.now());
-    if(!r.ok) return;
+    const r = await fetch(ALERTS_URL+'?t='+Date.now(), {cache:'no-store'});
+    if(!r.ok){ bootstrapInfo.lastError = 'alerts.json HTTP '+r.status; setRpMessage('Sem snapshot inicial.<br>Verifique <span style="color:var(--text2)">data/alerts.json</span>.'); return; }
     const data = await r.json();
-    if(!Array.isArray(data)||!data.length){
-      document.getElementById('rp-content').innerHTML='<div class="rp-empty">Sem snapshot inicial.<br>Verifique data/alerts.json</div>';
-      return;
-    }
+    if(!Array.isArray(data)||!data.length){ bootstrapInfo.lastError = 'alerts.json vazio'; setRpMessage('Sem snapshot inicial.<br>O tracker ainda não gerou <span style="color:var(--text2)">alerts.json</span>.'); return; }
     const a = data[0];
-
-    // extrai baleias com endereço
     whales = (a.whale_positions||[]).map(w=>({
       display:     w.display,
       address:     w.address || '',
@@ -579,29 +577,22 @@ async function loadWhalesFromAlerts(){
       total_upnl:  w.total_upnl||0,
       total_notional: w.total_notional||0,
     })).filter(w=>w.display);
+    bootstrapInfo.alertsLoaded = whales.length;
+    bootstrapInfo.withAddress = whales.filter(w=>w.address&&w.address.length>10).length;
+    bootstrapInfo.lastBootstrap = a.timestamp || '';
+    if(!whales.length){ setRpMessage('Nenhuma baleia no snapshot.<br>Verifique os filtros do tracker.'); return; }
+    if(!bootstrapInfo.withAddress){ setRpMessage('Snapshot carregado, mas sem <span style="color:var(--text2)">address</span> nas baleias.<br>Corrija <span style="color:var(--text2)">alerts_writer.py</span> e rode o workflow de novo.'); }
 
-    const withAddr = whales.filter(w=>w.address&&w.address.length>10).length;
-    // consenso
     const longNot  = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='LONG').reduce((a,p)=>a+p.notional,0),0);
     const shortNot = whales.reduce((s,w)=>s+w.positions.filter(p=>p.side==='SHORT').reduce((a,p)=>a+p.notional,0),0);
     updateConsensusBar(longNot, shortNot);
-    if(!withAddr){
-      document.getElementById('rp-content').innerHTML='<div class="rp-empty">Snapshot carregado, mas sem addresses para polling.<br>Regenere data/alerts.json.</div>';
-    }
 
-    // plota marcadores iniciais (entradas existentes)
-    const ts = now() - 300; // 5min atrás
-    whales.forEach(w=>{
-      w.positions.forEach(p=>{
-        if(p.coin === currentSymbol){
-          addMarker({time:ts, type:'open', price:p.entry_px, whale:w.display, coin:p.coin, notional:p.notional, side:p.side});
-        }
-      });
-    });
+    const ts = now() - 300;
+    whales.forEach(w=>{ w.positions.forEach(p=>{ if(p.coin === currentSymbol){ addMarker({time:ts, type:'open', price:p.entry_px, whale:w.display, coin:p.coin, notional:p.notional, side:p.side}); } }); });
 
     renderRightPanel();
     updateTopbarWhales();
-  } catch(e){ console.warn('loadWhalesFromAlerts:', e); document.getElementById('rp-content').innerHTML='<div class="rp-empty">Erro ao carregar baleias.<br>Veja console / data/alerts.json</div>'; }
+  } catch(e){ bootstrapInfo.lastError = String(e); console.warn('loadWhalesFromAlerts:', e); setRpMessage('Falha ao carregar snapshot inicial.<br><span style="color:var(--text2)">'+String(e)+'</span>'); }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -615,13 +606,17 @@ function startPollLoop(){
 }
 
 async function pollAllWhales(){
-  // limita a top 15 para não sobrecarregar
   const toCheck = whales.filter(w=>w.address&&w.address.length>10).slice(0,15);
+  if(!toCheck.length){
+    renderRightPanel();
+    updateTopbarWhales();
+    return;
+  }
   for(const whale of toCheck){
     try {
       await pollWhale(whale);
       await sleep(200);
-    } catch(e){}
+    } catch(e){ console.warn('pollWhale', whale.display, e); }
   }
   renderRightPanel();
   updateTopbarWhales();
@@ -866,9 +861,9 @@ function changeSymbol(symbol){
   markers = [];
   currentCandle = null;
   document.getElementById('co-markers').textContent='0';
-  const prevSymbol = currentSymbol;
   // re-subscreve WS
   if(ws && ws.readyState===1){
+    const prevSymbol = currentSymbol;
     ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'trades', coin:prevSymbol}}));
     ws.send(JSON.stringify({method:'unsubscribe', subscription:{type:'activeAssetCtx', coin:prevSymbol}}));
     ws.send(JSON.stringify({method:'subscribe', subscription:{type:'trades', coin:symbol}}));

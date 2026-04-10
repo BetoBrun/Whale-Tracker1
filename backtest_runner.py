@@ -1,240 +1,195 @@
-#!/usr/bin/env python3
 # ╔══════════════════════════════════════════════════════════════╗
-# ║          🐋 WHALE TRACKER — BACKTEST                        ║
-# ║          Execute: python backtest_runner.py                 ║
+# ║            🐋 WHALE TRACKER — MÓDULO DE BACKTEST            ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-import sys
-import argparse
+import numpy as np
 import pandas as pd
-from pathlib import Path
-from datetime import datetime
+from scipy import stats
+from scipy.stats import binomtest, chi2_contingency, fisher_exact
 from tabulate import tabulate
-
-sys.path.insert(0, str(Path(__file__).parent))
-
-from config import CSV_FILE, HORIZON_H, DATA_DIR
-from api import fetch_hl_candles
-from storage import load_csv, enrich_snapshots, snapshot_stats
-from backtest import run_tests, simulate_realistic
-from dashboard import plot_backtest
+from config import HORIZON_H
 
 
 # ══════════════════════════════════════════════════════════════
-# BACKTEST REAL
+# SIMULAÇÃO REALISTA
 # ══════════════════════════════════════════════════════════════
 
-def run_real(show_plots: bool = True) -> dict | None:
-    print(f"\n🐋 BACKTEST REAL — {datetime.utcnow():%Y-%m-%d %H:%M UTC}")
+def simulate_realistic(btc_df: pd.DataFrame, n: int,
+                       true_accuracy: float,
+                       seed: int = 42) -> pd.DataFrame:
+    """
+    Simulação com preços reais da Hyperliquid.
+    Intensidade do sinal acoplada ao retorno absoluto da vela,
+    refletindo o comportamento esperado de baleias direcionais.
+    """
+    np.random.seed(seed)
+    avail    = len(btc_df) - 1
+    n        = min(n, avail)
+    abs_rets = btc_df["retorno_pct"].abs().iloc[:avail]
+    ret_pct  = abs_rets.rank(pct=True).values
 
-    df = load_csv()
-    if df.empty:
-        print("❌ Nenhum dado. Execute tracker.py primeiro.")
-        return None
+    rows = []
+    for i in range(n):
+        ret_real   = btc_df.iloc[i]["retorno_pct"]
+        candle     = btc_df.iloc[i]
+        up         = ret_real > 0
+        conviction = ret_pct[i]
+        intensity  = np.clip(62 + conviction * 30 + np.random.normal(0, 3), 55, 97)
 
-    btc_df = fetch_hl_candles(coin="BTC", days=90, interval="4h")
-    count  = enrich_snapshots(btc_df)
-    if count:
-        print(f"  🔄 {count} snapshot(s) enriquecidos")
-        df = load_csv()
+        correct = np.random.random() < true_accuracy
+        signal  = ("BULLISH" if up else "BEARISH") if correct \
+             else ("BEARISH" if up else "BULLISH")
 
-    df_dir = df[df["signal"].isin(["BULLISH","BEARISH"]) &
-                df["resultado"].notna()].copy()
-    df_dir["acerto"] = (df_dir["resultado"] == "ACERTO").astype(int)
+        if signal == "BULLISH":
+            long_pct, short_pct = intensity, 100 - intensity
+        else:
+            short_pct, long_pct = intensity, 100 - intensity
 
-    total   = len(df_dir)
-    acertos = int(df_dir["acerto"].sum())
-    taxa    = acertos / total * 100 if total else 0
+        resultado = (
+            "ACERTO" if (signal == "BULLISH" and ret_real > 0) or
+                        (signal == "BEARISH" and ret_real < 0)
+            else "ERRO"
+        )
 
-    if total < 30:
-        print(f"\n  ⚠️  {total} sinais reais (mínimo 30 — faltam {30-total})")
-        _print_progress(total)
-        return None
-
-    result = run_tests(df_dir, taxa, total, acertos)
-
-    if show_plots:
-        save_path = str(DATA_DIR / f"backtest_real_{datetime.utcnow():%Y%m%d_%H%M}.png")
-        plot_backtest(df, df_dir, btc_df, result, save_path=save_path)
-
-    return result
-
-
-# ══════════════════════════════════════════════════════════════
-# BACKTEST SIMULADO
-# ══════════════════════════════════════════════════════════════
-
-def run_simulated(n: int = 400, acc: float = 0.60,
-                  show_plots: bool = True) -> dict:
-    print(f"\n🔬 BACKTEST SIMULADO — {datetime.utcnow():%Y-%m-%d %H:%M UTC}")
-    print(f"   {n} snapshots · {acc*100:.0f}% acerto · preços reais Hyperliquid\n")
-
-    btc_df = fetch_hl_candles(coin="BTC", days=90, interval="4h")
-    df     = simulate_realistic(btc_df, n, acc)
-    df_dir = df[df["signal"].isin(["BULLISH","BEARISH"])].copy()
-    df_dir["acerto"] = (df_dir["resultado"] == "ACERTO").astype(int)
-
-    total   = len(df_dir)
-    acertos = int(df_dir["acerto"].sum())
-    taxa    = acertos / total * 100
-
-    result = run_tests(df_dir, taxa, total, acertos, is_sim=True, true_acc=acc)
-
-    if show_plots:
-        save_path = str(DATA_DIR / f"backtest_sim_{acc*100:.0f}pct_{datetime.utcnow():%Y%m%d_%H%M}.png")
-        plot_backtest(df, df_dir, btc_df, result,
-                      is_sim=True, true_acc=acc, save_path=save_path)
-
-    _print_sample_requirements(taxa, total)
-    return result
-
-
-# ══════════════════════════════════════════════════════════════
-# COMPARAÇÃO DE CENÁRIOS
-# ══════════════════════════════════════════════════════════════
-
-def compare(n: int = 400, show_plots: bool = True):
-    print(f"\n📊 COMPARAÇÃO — {datetime.utcnow():%Y-%m-%d %H:%M UTC}\n")
-    btc_df   = fetch_hl_candles(coin="BTC", days=90, interval="4h")
-    cenarios = [(0.55,"Conservador"), (0.60,"Base"), (0.65,"Otimista")]
-    summary  = []
-
-    for acc, nome in cenarios:
-        print(f"\n{'─'*65}")
-        print(f"  Cenário: {nome} ({acc*100:.0f}%)")
-        print(f"{'─'*65}")
-        df     = simulate_realistic(btc_df, n, acc, seed=int(acc*100))
-        df_dir = df[df["signal"].isin(["BULLISH","BEARISH"])].copy()
-        df_dir["acerto"] = (df_dir["resultado"] == "ACERTO").astype(int)
-        total   = len(df_dir)
-        acertos = int(df_dir["acerto"].sum())
-        taxa    = acertos / total * 100
-        r       = run_tests(df_dir, taxa, total, acertos,
-                            is_sim=True, true_acc=acc, label=nome)
-        summary.append({
-            "Cenário":    nome,
-            "Real":       f"{acc*100:.0f}%",
-            "Obs.":       f"{taxa:.1f}%",
-            "IC 95%":     f"[{r['ci_lo']:.1f}%,{r['ci_hi']:.1f}%]",
-            "Binomial":   f"{'✅' if r['p_binom']<0.05 else '❌'} p={r['p_binom']:.3f}",
-            "Chi²":       f"{'✅' if r['p_chi2']<0.05 else '❌'} p={r['p_chi2']:.3f}",
-            "Bull↑":      f"{r['bull_up']:.1f}%",
-            "Bear↓":      f"{r['bear_down']:.1f}%",
-            "Spearman":   f"{'✅' if r['p_spear']<0.05 else '❌'} ρ={r['rho']:.3f}",
-            "Válidos":    f"{r['valid_count']}/3",
+        rows.append({
+            "timestamp":     candle["timestamp"],
+            "btc_price_t0":  candle["open"],
+            "signal":        signal,
+            "long_pct":      round(long_pct,  2),
+            "short_pct":     round(short_pct, 2),
+            "total_long":    float(np.random.uniform(10e6, 80e6)),
+            "total_short":   float(np.random.uniform(10e6, 80e6)),
+            "active_whales": int(np.random.randint(5, 15)),
+            "btc_price_t4":  btc_df.iloc[i + 1]["close"],
+            "retorno_pct":   round(ret_real, 4),
+            "resultado":     resultado,
         })
 
-    print(f"\n{'═'*75}")
-    print("  📋 RESUMO COMPARATIVO")
-    print(f"{'═'*75}\n")
-    print(tabulate(pd.DataFrame(summary), headers="keys",
-                   tablefmt="rounded_outline", showindex=False))
+    return pd.DataFrame(rows)
 
 
 # ══════════════════════════════════════════════════════════════
-# QUICK VALIDATE
+# TESTES ESTATÍSTICOS
 # ══════════════════════════════════════════════════════════════
 
-def quick_validate() -> None:
-    df     = load_csv()
-    df_dir = df[df["signal"].isin(["BULLISH","BEARISH"]) &
-                df["resultado"].notna()].copy()
-    df_dir["acerto"] = (df_dir["resultado"] == "ACERTO").astype(int)
+def run_tests(df_dir: pd.DataFrame,
+              taxa: float, total: int, acertos: int,
+              is_sim: bool = False,
+              true_acc: float = None,
+              label: str = "",
+              verbose: bool = True) -> dict:
+    """
+    Três testes independentes:
+      1. Binomial     — taxa global > 50%?
+      2. Chi² Direcional — sinal discrimina direção BTC?
+      3. Spearman     — intensidade prediz magnitude?
+    """
+    p_hat        = taxa / 100
+    se           = np.sqrt(p_hat * (1 - p_hat) / total)
+    ci_lo, ci_hi = (p_hat - 1.96*se)*100, (p_hat + 1.96*se)*100
 
-    total   = len(df_dir)
-    acertos = int(df_dir["acerto"].sum())
-    taxa    = acertos / total * 100 if total else 0
+    # 1 — Binomial
+    res   = binomtest(acertos, total, p=0.5, alternative="greater")
+    p_bin = res.pvalue
 
-    print(f"\n🐋 Quick Validate — {datetime.utcnow():%Y-%m-%d %H:%M UTC}")
-    stats = snapshot_stats()
-    print(f"   Total snapshots : {stats['total']}")
-    print(f"   Direcionais     : {stats['direcionais']}")
-    print(f"   Com resultado   : {stats['com_resultado']}")
-    print(f"   Taxa de acerto  : {stats['taxa_acerto']:.1f}%\n")
+    # 2 — Chi² Direcional
+    df_d = df_dir.copy()
+    df_d["ret_dir"] = (df_d["retorno_pct"] > 0).map({True: "UP", False: "DOWN"})
+    ct = pd.crosstab(df_d["signal"], df_d["ret_dir"])
+    for col in ["UP", "DOWN"]:
+        if col not in ct.columns:
+            ct[col] = 0
+    ct = ct[["UP", "DOWN"]]
 
-    if total < 10:
-        print(f"  ⚠️  Amostra muito pequena ({total}/30).")
-        _print_progress(total)
-        return
+    try:
+        chi2_v, p_chi, _, expected = chi2_contingency(ct)
+        if (expected < 5).any():
+            _, p_chi  = fisher_exact(ct.values[:2, :2])
+            chi2_v    = float("nan")
+            test_name = "Fisher"
+        else:
+            test_name = "Chi²"
+    except Exception:
+        chi2_v, p_chi, test_name = 0.0, 1.0, "Chi²"
 
-    run_tests(df_dir, taxa, total, acertos, label="REAL")
-    _print_progress(total)
+    bull_rows = df_d[df_d["signal"] == "BULLISH"]
+    bear_rows = df_d[df_d["signal"] == "BEARISH"]
+    bull_up   = (bull_rows["ret_dir"] == "UP").mean()   * 100 if len(bull_rows) else 0
+    bear_down = (bear_rows["ret_dir"] == "DOWN").mean() * 100 if len(bear_rows) else 0
 
+    # 3 — Spearman
+    df_d["long_dir"] = df_d.apply(
+        lambda r: r["long_pct"] if r["signal"] == "BULLISH" else -r["short_pct"],
+        axis=1)
+    rho, p_sp = stats.spearmanr(df_d["long_dir"],
+                                df_d["retorno_pct"].fillna(0))
 
-# ══════════════════════════════════════════════════════════════
-# SENSIBILIDADE
-# ══════════════════════════════════════════════════════════════
+    ret_stats = df_d.groupby("signal")["retorno_pct"].agg(["mean","std","count"])
+    df_d["dominante"] = df_d[["long_pct","short_pct"]].max(axis=1)
+    intensity = {}
+    for thr in [62, 65, 68, 72, 75, 80]:
+        sub = df_d[df_d["dominante"] >= thr]
+        if len(sub) >= 5:
+            intensity[thr] = {"taxa": sub["acerto"].mean()*100, "n": len(sub)}
 
-def sensitivity():
-    print(f"\n{'═'*65}")
-    print("  📐 SENSIBILIDADE — Amostra Necessária por Acerto Real")
-    print(f"{'═'*65}")
-    print(f"  {'Acerto':<10} {'N (IC±5%)':<18} {'Dias 4h':<12} Status")
-    print(f"  {'─'*10} {'─'*18} {'─'*12} {'─'*13}")
-    for acc in [0.51, 0.52, 0.55, 0.58, 0.60, 0.63, 0.65, 0.70]:
-        n    = int((1.96**2 * acc*(1-acc)) / 0.05**2)
-        dias = n * HORIZON_H / 24
-        st   = ("✅ validável" if acc >= 0.55 else
-                "⚠️  marginal"  if acc >= 0.52 else "❌ ruído")
-        print(f"  {acc*100:.0f}%        {n:<18} {dias:<12.0f} {st}")
-    print(f"{'═'*65}\n")
+    valid = sum([p_bin < 0.05, p_chi < 0.05, p_sp < 0.05])
 
+    if verbose:
+        tag = f" [{label}]" if label else (" [SIMULAÇÃO]" if is_sim else " [REAL]")
+        print(f"\n{'═'*65}")
+        print(f"  📊 TESTES ESTATÍSTICOS{tag}")
+        print(f"{'═'*65}")
+        print(f"  Sinais : {total}   Acertos : {acertos}   Taxa : {taxa:.1f}%")
+        print(f"  IC 95% : [{ci_lo:.1f}%, {ci_hi:.1f}%]")
 
-def _print_progress(n: int):
-    print(f"\n  📐 Progresso:")
-    for t in [30, 100, 200, 300]:
-        pct = min(100, n/t*100)
-        bar = "█"*int(pct/5) + "░"*(20-int(pct/5))
-        ok  = "✅" if n >= t else "⏳"
-        print(f"     {ok} {t:>4}  [{bar}] {pct:.0f}%")
-    print(f"     ⏳ Para 300: ~{max(0,300-n)*HORIZON_H/24:.1f} dias")
+        print(f"\n  🎲 1. Binomial  (H₀: acerto = 50%)")
+        print(f"     p={p_bin:.4f}  " +
+              ("✅ Sinal bate o random" if p_bin < 0.05 else "❌ Pode ser sorte"))
 
+        nan_chi = isinstance(chi2_v, float) and np.isnan(chi2_v)
+        chi_str = f"χ²={chi2_v:.3f}  " if not nan_chi else ""
+        print(f"\n  χ²  2. {test_name} Direcional")
+        print(f"     BULLISH → BTC↑ : {bull_up:5.1f}%  {'✅' if bull_up>52 else '⚠️ ' if bull_up>50 else '❌'}")
+        print(f"     BEARISH → BTC↓ : {bear_down:5.1f}%  {'✅' if bear_down>52 else '⚠️ ' if bear_down>50 else '❌'}")
+        print(f"     {chi_str}p={p_chi:.4f}  " +
+              ("✅ Discrimina direção" if p_chi < 0.05 else "❌ Não discrimina"))
 
-def _print_sample_requirements(taxa: float, total: int):
-    p = taxa / 100
-    n = int((1.96**2 * p*(1-p)) / 0.05**2)
-    print(f"  📐 IC ±5%: {n} sinais  (~{n*HORIZON_H/24:.0f} dias)\n")
+        print(f"\n  ρ   3. Spearman  (intensidade × retorno)")
+        print(f"     ρ={rho:.3f}  p={p_sp:.4f}  " +
+              ("✅ Convicção → retorno maior" if p_sp < 0.05 else "❌ Intensidade não prediz"))
 
+        print(f"\n  💰 Retorno médio {HORIZON_H}h:\n")
+        print(tabulate(ret_stats.round(4),
+                       headers=["Sinal","Média%","Std%","N"],
+                       tablefmt="rounded_outline"))
 
-# ══════════════════════════════════════════════════════════════
-# ENTRY POINT
-# ══════════════════════════════════════════════════════════════
+        print(f"\n  📈 Acerto por intensidade:")
+        for thr, v in intensity.items():
+            bar  = "█" * int(v["taxa"] / 5)
+            icon = "✅" if v["taxa"]>55 else "⚠️ " if v["taxa"]>50 else "❌"
+            print(f"     {icon} ≥{thr}%  {v['taxa']:5.1f}%  {bar}  (n={v['n']})")
 
-def main():
-    stats  = snapshot_stats()
-    n_real = stats["com_resultado"]
+        verdicts = {
+            3: "🏆 SINAL ROBUSTO       — 3/3 testes",
+            2: "🟡 SINAL PROMISSOR     — 2/3 testes",
+            1: "⚠️  SINAL FRACO         — 1/3 testes",
+            0: "❌ SINAL NÃO VALIDADO  — 0/3 testes",
+        }
+        print(f"\n  {'─'*63}")
+        print(f"  VEREDICTO: {verdicts[valid]}")
+        if is_sim and true_acc:
+            exp    = 3 if true_acc >= 0.60 else 2 if true_acc >= 0.55 else 1
+            status = "✅ consistente" if valid >= exp else f"⚠️  esperado ≥{exp}/3"
+            print(f"  {status} com {true_acc*100:.0f}% de acerto real (n={total})")
+        print(f"  {'─'*63}\n")
 
-    if n_real >= 30:
-        print(f"  ✅ {n_real} sinais reais → backtest real")
-        run_real()
-    else:
-        print(f"  ℹ️  {n_real}/30 sinais — rodando simulação")
-        sensitivity()
-        run_simulated(n=400, acc=0.60)
-        compare(n=400)
-        _print_progress(n_real)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="🐋 Whale Tracker — Backtest")
-    sub    = parser.add_subparsers(dest="cmd")
-
-    sub.add_parser("real",      help="Backtest com dados reais do CSV")
-    sub.add_parser("validate",  help="Validação rápida sem gráfico")
-    sub.add_parser("simulate",  help="Simulação com preços reais HL")
-    sub.add_parser("compare",   help="Compara 3 cenários de edge")
-    sub.add_parser("sensitivity", help="Tabela de amostra necessária")
-
-    p_sim = sub.add_parser("sim")
-    p_sim.add_argument("--acc", type=float, default=0.60)
-    p_sim.add_argument("--n",   type=int,   default=400)
-
-    args = parser.parse_args()
-
-    if args.cmd == "real":       run_real()
-    elif args.cmd == "validate": quick_validate()
-    elif args.cmd == "simulate": run_simulated()
-    elif args.cmd == "sim":      run_simulated(n=args.n, acc=args.acc)
-    elif args.cmd == "compare":  compare()
-    elif args.cmd == "sensitivity": sensitivity()
-    else:                        main()
+    return {
+        "total": total, "acertos": acertos, "taxa": taxa,
+        "ci_lo": ci_lo, "ci_hi": ci_hi,
+        "p_binom": p_bin, "p_chi2": p_chi,
+        "chi2_val": chi2_v, "test_name": test_name,
+        "bull_up": bull_up, "bear_down": bear_down,
+        "rho": rho, "p_spear": p_sp,
+        "ret_stats": ret_stats, "intensity": intensity,
+        "valid_count": valid, "df_dir": df_d,
+    }

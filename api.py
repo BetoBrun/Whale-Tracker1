@@ -1,273 +1,271 @@
-# ╔══════════════════════════════════════════════════════════════╗
-# ║ 🐋 WHALE TRACKER — MÓDULO DE API                           ║
-# ╚══════════════════════════════════════════════════════════════╝
+import json
+from pathlib import Path
+from config import DATA_DIR
 
-import time
-import requests
-import pandas as pd
-from datetime import datetime, timedelta
-from config import (
-    INFO_URL, LEADERBOARD_URL,
-    MIN_PNL_ALL_TIME, MIN_NOTIONAL_POS,
-    BTC_FAMILY, ETH_FAMILY, TOP_N,
-)
+ALERTS_FILE = DATA_DIR / "alerts.json"
+MAX_ALERTS  = 72
 
-# ══════════════════════════════════════════════════════════════
-# HELPERS INTERNOS
-# ══════════════════════════════════════════════════════════════
 
-def _post(payload: dict, retries: int = 3) -> dict:
-    headers = {"Content-Type": "application/json"}
-    for attempt in range(retries):
+def write_alert(snap: dict, sig: dict, all_pos: list) -> None:
+    entry  = _build_entry(snap, sig, all_pos)
+    alerts = _load()
+    alerts.insert(0, entry)
+    alerts = alerts[:MAX_ALERTS]
+    ALERTS_FILE.write_text(
+        json.dumps(alerts, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _load() -> list:
+    if ALERTS_FILE.exists():
         try:
-            r = requests.post(INFO_URL, json=payload, headers=headers, timeout=15)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            if attempt == retries - 1:
-                raise
-            time.sleep(1.5 * (attempt + 1))
+            return json.loads(ALERTS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+    return []
 
 
-def _get_raw_leaderboard() -> list:
-    r = requests.get(LEADERBOARD_URL, timeout=30)
-    r.raise_for_status()
-    data = r.json()
-    rows = data.get("leaderboardRows")
-    if rows is None:
-        for key in ("leaderboard", "data", "result"):
-            rows = data.get(key)
-            if rows is not None:
-                break
-    if rows is None:
-        raise ValueError(f"Chave de leaderboard não encontrada. Keys: {list(data.keys())}")
-    return rows
+def _build_entry(snap: dict, sig: dict, all_pos: list) -> dict:
+    dominant = max(sig["long_pct"], sig["short_pct"])
+    strength = ("forte" if dominant >= 75 else
+                "moderado" if dominant >= 68 else "fraco")
 
+    excluded_set    = {mm["display"] for mm in sig.get("excluded_mm", [])}
+    total_collected = len(all_pos)
+    active          = sig.get("active_whales", 0)
+    excluded_mm     = sig.get("excluded_mm", [])
+    sem_posicao     = max(total_collected - active - len(excluded_mm), 0)
+    btc_now         = snap["btc_price_t0"]
 
-def _f(d: dict, k: str) -> float:
-    try:
-        return float(d.get(k) or 0)
-    except (TypeError, ValueError):
-        return 0.0
+    # ── posições individuais + métricas estratégicas + performance ──────────
+    whale_positions = []
+    for entry in all_pos:
+        if entry["display"] in excluded_set:
+            continue
+        df = entry.get("positions")
+        if df is None or (hasattr(df, "empty") and df.empty):
+            continue
 
+        rows = []
+        try:
+            for _, r in df.iterrows():
+                entry_px = float(r.get("entry_px", r.get("entry", 0)))
+                notional = float(r.get("notional", 0))
+                upnl     = float(r.get("upnl", r.get("unrealized_pnl", 0)))
+                size     = float(r.get("size", 0))
+                lev      = float(r.get("leverage", 1))
+                side     = str(r.get("side", ""))
+                coin     = str(r.get("coin", ""))
+                upnl_pct = float(r.get("upnl_pct",
+                                       (upnl / notional * 100) if notional else 0))
+                if entry_px <= 0:
+                    continue
 
-def _parse_entry(entry: dict) -> dict | None:
-    if not isinstance(entry, dict):
-        return None
-    addr = entry.get("ethAddress", "")
-    if not addr or len(addr) < 10:
-        return None
+                dist_pct = None
+                if coin == "BTC" and btc_now:
+                    dist_pct = ((btc_now - entry_px) / entry_px * 100
+                                if side == "LONG"
+                                else (entry_px - btc_now) / entry_px * 100)
 
-    wp_map: dict[str, dict] = {}
-    for item in entry.get("windowPerformances", []):
-        if isinstance(item, (list, tuple)) and len(item) == 2:
-            name, perf = item
-            if isinstance(perf, dict):
-                wp_map[name] = perf
+                liq_price = None
+                if lev > 1:
+                    liq_price = round(
+                        entry_px * (1 - 0.9 / lev) if side == "LONG"
+                        else entry_px * (1 + 0.9 / lev), 2)
 
-    pnl_all     = _f(wp_map.get("allTime", {}), "pnl")
-    pnl_month   = _f(wp_map.get("month",   {}), "pnl")
-    pnl_week    = _f(wp_map.get("week",    {}), "pnl")
-    pnl_day     = _f(wp_map.get("day",     {}), "pnl")
-    vol_day     = _f(wp_map.get("day",     {}), "vlm")
-    roi_all     = _f(wp_map.get("allTime", {}), "roi")
-    roi_month   = _f(wp_map.get("month",   {}), "roi")
-    roi_week    = _f(wp_map.get("week",    {}), "roi")
+                rows.append({
+                    "coin":      coin,
+                    "side":      side,
+                    "size":      round(size, 4),
+                    "notional":  round(notional, 0),
+                    "entry_px":  round(entry_px, 2),
+                    "upnl":      round(upnl, 0),
+                    "upnl_pct":  round(upnl_pct, 2),
+                    "leverage":  round(lev, 1),
+                    "liq_price": liq_price,
+                    "dist_pct":  round(dist_pct, 2) if dist_pct is not None else None,
+                })
+        except Exception:
+            pass
 
-    # campo "quarter" quando disponível na API, senão estima como 3x mês
-    pnl_quarter_raw = _f(wp_map.get("quarter", {}), "pnl")
-    roi_quarter     = _f(wp_map.get("quarter", {}), "roi")
-    if pnl_quarter_raw == 0 and pnl_month != 0:
-        pnl_quarter_raw  = pnl_month * 3
-        quarter_estimated = True
-    else:
-        quarter_estimated = False
+        if not rows:
+            continue
 
-    # ── consistency_score (0–100) ─────────────────────────────────────────
-    score = 0.0
-    score += 25 if pnl_month > 0 else 0
-    score += 15 if pnl_week  > 0 else 0
-    score += 10 if pnl_day   > 0 else 0
-    if roi_month > 0.10:   score += 20
-    elif roi_month > 0.05: score += 12
-    elif roi_month > 0:    score +=  5
-    if roi_week > 0.05:    score += 15
-    elif roi_week > 0.02:  score +=  8
-    elif roi_week > 0:     score +=  4
-    if pnl_quarter_raw > 0:
-        score += 15
-    consistency_score = min(round(score, 1), 100.0)
+        total_not  = sum(r["notional"] for r in rows)
+        long_not   = sum(r["notional"] for r in rows if r["side"] == "LONG")
+        short_not  = sum(r["notional"] for r in rows if r["side"] == "SHORT")
+        bias       = "LONG" if long_not >= short_not else "SHORT"
+        total_upnl = sum(r["upnl"] for r in rows)
 
-    try:
-        acct_val = float(entry.get("accountValue") or 0)
-    except (TypeError, ValueError):
-        acct_val = 0.0
+        # dados de performance da baleia (vindos do leaderboard)
+        perf = {
+            "pnl_month":         entry.get("pnl_month", 0),
+            "pnl_week":          entry.get("pnl_week", 0),
+            "pnl_day":           entry.get("pnl_day", 0),
+            "pnl_quarter":       entry.get("pnl_quarter", 0),
+            "quarter_estimated": entry.get("quarter_estimated", True),
+            "roi_month":         entry.get("roi_month", 0),
+            "roi_week":          entry.get("roi_week", 0),
+            "roi_quarter":       entry.get("roi_quarter", 0),
+            "consistency_score": entry.get("consistency_score", 0),
+        }
 
-    display = entry.get("displayName") or (addr[:8] + "…")
+        whale_positions.append({
+            "display":        entry["display"],
+            "address":        entry.get("address", ""),
+            "quality_score":  round(float(entry.get("quality_score", 0)), 3),
+            "consistency_score": perf["consistency_score"],
+            "total_notional": round(total_not, 0),
+            "long_notional":  round(long_not, 0),
+            "short_notional": round(short_not, 0),
+            "total_upnl":     round(total_upnl, 0),
+            "bias":           bias,
+            "n_positions":    len(rows),
+            "performance":    perf,
+            "positions":      sorted(rows, key=lambda x: x["notional"], reverse=True),
+        })
+
+    whale_positions.sort(key=lambda x: x["total_notional"], reverse=True)
+
+    # ── clusters de entradas ──────────────────────────────────────────────────
+    entry_clusters = _compute_entry_clusters(whale_positions, btc_now)
+
+    # ── ranking de consistência trimestral ────────────────────────────────────
+    top_consistent = _rank_by_consistency(whale_positions)
 
     return {
-        "address":            addr,
-        "display":            display,
-        "pnl_all":            pnl_all,
-        "pnl_month":          pnl_month,
-        "pnl_week":           pnl_week,
-        "pnl_day":            pnl_day,
-        "pnl_quarter":        round(pnl_quarter_raw, 0),
-        "quarter_estimated":  quarter_estimated,
-        "roi_all":            roi_all,
-        "roi_month":          round(roi_month, 4),
-        "roi_week":           round(roi_week, 4),
-        "roi_quarter":        round(roi_quarter, 4),
-        "vol_day":            vol_day,
-        "acct_val":           acct_val,
-        "consistency_score":  consistency_score,
+        "timestamp":        snap["timestamp"],
+        "signal":           sig["signal"].lower(),
+        "strength":         strength,
+        "dominant_pct":     round(dominant, 2),
+        "long_pct":         round(sig["long_pct"], 2),
+        "short_pct":        round(sig["short_pct"], 2),
+        "total_long":       round(sig["total_long"], 0),
+        "total_short":      round(sig["total_short"], 0),
+        "active_whales":    active,
+        "btc_price":        round(btc_now, 2),
+        "collected":        total_collected,
+        "excluded_mm":      len(excluded_mm),
+        "sem_posicao":      sem_posicao,
+        "assets": [
+            {"coin": a["coin"], "direction": a["direction"],
+             "long_pct": round(a["long_pct"], 1), "short_pct": round(a["short_pct"], 1),
+             "total_usd": round(a["total_usd"], 0), "conviction": a["conviction"]}
+            for a in sig.get("asset_signals", [])[:8]
+        ],
+        "excluded_mm_list": [
+            {"display": m["display"], "ratio": m["ratio"], "n_pos": m["n_pos"]}
+            for m in excluded_mm[:10]
+        ],
+        "whale_positions":   whale_positions[:20],
+        "entry_clusters":    entry_clusters,
+        "top_consistent":    top_consistent,
     }
 
 
-def _quality_score(df: pd.DataFrame) -> pd.Series:
-    def rk(s): return s.rank(pct=True, ascending=True).fillna(0.5)
-    return (0.35 * rk(df["pnl_all"])   +
-            0.35 * rk(df["pnl_month"]) +
-            0.20 * rk(df["roi_all"])   +
-            0.10 * rk(df["vol_day"]))
-
-
-def _normalize_coin(coin: str) -> str:
-    if coin in BTC_FAMILY: return "BTC"
-    if coin in ETH_FAMILY: return "ETH"
-    return coin
-
-
-# ══════════════════════════════════════════════════════════════
-# FUNÇÕES PÚBLICAS
-# ══════════════════════════════════════════════════════════════
-
-def get_leaderboard(top_n: int = TOP_N) -> pd.DataFrame:
-    print(" 📥 Baixando leaderboard…", end=" ", flush=True)
-    raw = _get_raw_leaderboard()
-    print(f"✅ {len(raw):,} traders")
-
-    parsed = []
-    for entry in raw:
-        p = _parse_entry(entry)
-        if p and p["pnl_all"] >= MIN_PNL_ALL_TIME:
-            parsed.append(p)
-
-    if not parsed:
-        parsed = [p for p in (_parse_entry(e) for e in raw) if p]
-
-    print(f" 🔍 Após filtro PnL ≥ ${MIN_PNL_ALL_TIME:,.0f}: {len(parsed)} baleias")
-
-    df = pd.DataFrame(parsed)
-    df["quality_score"] = _quality_score(df)
-    return (df.sort_values("quality_score", ascending=False)
-              .drop_duplicates("address")
-              .head(top_n)
-              .reset_index(drop=True))
-
-
-def get_positions(address: str) -> pd.DataFrame:
-    data = _post({"type": "clearinghouseState", "user": address})
-    rows = []
-    for pos in data.get("assetPositions", []):
-        p        = pos.get("position", {})
-        size     = float(p.get("szi", 0) or 0)
-        entry_px = float(p.get("entryPx", 0) or 0)
-        upnl     = float(p.get("unrealizedPnl", 0) or 0)
-        lev      = float((p.get("leverage") or {}).get("value", 1) or 1)
-
-        if size == 0 or entry_px <= 0:
-            continue
-        notional = abs(size) * entry_px
-        if notional < MIN_NOTIONAL_POS:
-            continue
-
-        rows.append({
-            "coin":     _normalize_coin(p.get("coin", "")),
-            "side":     "LONG" if size > 0 else "SHORT",
-            "size":     abs(size),
-            "entry_px": entry_px,
-            "notional": notional,
-            "upnl":     upnl,
-            "leverage": lev,
-            "upnl_pct": (upnl / notional * 100) if notional > 0 else 0,
+def _rank_by_consistency(whale_positions: list) -> list:
+    """
+    Retorna as baleias ordenadas por consistency_score (3 meses).
+    Inclui apenas as que têm posição aberta.
+    """
+    ranked = sorted(
+        whale_positions,
+        key=lambda w: w.get("consistency_score", 0),
+        reverse=True
+    )
+    result = []
+    for i, w in enumerate(ranked[:15]):
+        p = w.get("performance", {})
+        result.append({
+            "rank":              i + 1,
+            "display":           w["display"],
+            "quality_score":     w["quality_score"],
+            "consistency_score": w.get("consistency_score", 0),
+            "bias":              w["bias"],
+            "total_notional":    w["total_notional"],
+            "pnl_month":         p.get("pnl_month", 0),
+            "pnl_week":          p.get("pnl_week", 0),
+            "pnl_day":           p.get("pnl_day", 0),
+            "pnl_quarter":       p.get("pnl_quarter", 0),
+            "quarter_estimated": p.get("quarter_estimated", True),
+            "roi_month":         p.get("roi_month", 0),
+            "roi_week":          p.get("roi_week", 0),
+            "top_coins": [
+                {"coin": pos["coin"], "side": pos["side"], "notional": pos["notional"]}
+                for pos in sorted(w.get("positions", []),
+                                  key=lambda x: x["notional"], reverse=True)[:3]
+            ],
         })
-
-    df = pd.DataFrame(rows)
-    if not df.empty:
-        df = (df.groupby(["coin", "side"])
-                .agg(notional=("notional", "sum"),
-                     size=("size", "sum"),
-                     entry_px=("entry_px", "mean"),
-                     upnl=("upnl", "sum"),
-                     leverage=("leverage", "mean"))
-                .reset_index()
-                .assign(upnl_pct=lambda d: d["upnl"] / d["notional"] * 100))
-    return df
+    return result
 
 
-def get_btc_price() -> float:
-    try:
-        data = _post({"type": "allMids"})
-        if isinstance(data, dict):
-            for key in ("BTC", "UBTC", "BTC/USDC"):
-                if key in data:
-                    return float(data[key])
-    except Exception:
-        pass
-    r = requests.get(
-        "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
-        timeout=10)
-    return float(r.json()["price"])
+def _compute_entry_clusters(whale_positions: list, btc_now: float) -> list:
+    from collections import defaultdict
+    coin_data = defaultdict(lambda: {"long": [], "short": []})
 
+    for w in whale_positions:
+        qs = w.get("quality_score", 0.5)
+        cs = w.get("consistency_score", 0)
+        for p in w.get("positions", []):
+            coin  = p["coin"]
+            side  = p["side"]
+            entry = p["entry_px"]
+            not_  = p["notional"]
+            if entry <= 0:
+                continue
+            coin_data[coin][side.lower()].append({
+                "entry":   entry,
+                "notional": not_,
+                "qs":      qs,
+                "cs":      cs,
+                "display": w["display"],
+            })
 
-def fetch_hl_candles(coin: str = "BTC", days: int = 90,
-                     interval: str = "4h") -> pd.DataFrame:
-    ms_map = {"1m": 60_000, "5m": 300_000, "15m": 900_000,
-              "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
-    ms_per = ms_map.get(interval, 14_400_000)
-    end_ms = int(datetime.utcnow().timestamp() * 1000)
-    st_ms  = end_ms - days * 86_400_000
+    clusters = []
+    for coin, sides in coin_data.items():
+        for side_key, positions in sides.items():
+            if not positions:
+                continue
+            total_not = sum(p["notional"] for p in positions)
+            if total_not < 500_000:
+                continue
+            avg_entry = sum(p["entry"] * p["notional"] for p in positions) / total_not
+            avg_qs    = sum(p["qs"] * p["notional"] for p in positions) / total_not
+            avg_cs    = sum(p["cs"] * p["notional"] for p in positions) / total_not
+            n_whales  = len(positions)
 
-    print(f" 📥 Candles {coin}/{interval} Hyperliquid ({days}d)…",
-          end=" ", flush=True)
+            if coin == "BTC":
+                dist = (btc_now - avg_entry) / avg_entry * 100
+                if side_key == "long":
+                    zone_type = "SUPORTE" if avg_entry < btc_now else "ABOVE"
+                else:
+                    zone_type = "RESISTENCIA" if avg_entry > btc_now else "BELOW"
+            else:
+                dist      = None
+                zone_type = "LONG_ZONE" if side_key == "long" else "SHORT_ZONE"
 
-    all_c, cur = [], st_ms
-    chunk = 500 * ms_per
-    while cur < end_ms:
-        end_c = min(cur + chunk, end_ms)
-        try:
-            r = requests.post(
-                INFO_URL,
-                json={"type": "candleSnapshot",
-                      "req": {"coin": coin, "interval": interval,
-                              "startTime": cur, "endTime": end_c}},
-                headers={"Content-Type": "application/json"},
-                timeout=15)
-            r.raise_for_status()
-            data = r.json()
-            if isinstance(data, list):
-                all_c.extend(data)
-        except Exception as e:
-            print(f"\n ⚠️ chunk erro: {e}")
-        cur = end_c + 1
-        time.sleep(0.08)
+            if n_whales >= 8 and total_not >= 20_000_000:
+                cluster_str = "forte"
+            elif n_whales >= 4 or total_not >= 5_000_000:
+                cluster_str = "moderado"
+            else:
+                cluster_str = "fraco"
 
-    print(f"✅ {len(all_c)} candles")
-    if not all_c:
-        raise ValueError(f"Nenhum candle para {coin}/{interval}")
+            clusters.append({
+                "coin":      coin,
+                "side":      side_key.upper(),
+                "avg_entry": round(avg_entry, 2),
+                "n_whales":  n_whales,
+                "total_not": round(total_not, 0),
+                "avg_qs":    round(avg_qs, 3),
+                "avg_cs":    round(avg_cs, 1),
+                "zone_type": zone_type,
+                "dist_pct":  round(dist, 2) if dist is not None else None,
+                "strength":  cluster_str,
+                "whales":    [p["display"] for p in
+                              sorted(positions, key=lambda x: x["notional"], reverse=True)][:5],
+            })
 
-    rows = [{"timestamp": pd.to_datetime(c["t"], unit="ms"),
-             "open":   float(c.get("o", 0)),
-             "high":   float(c.get("h", 0)),
-             "low":    float(c.get("l", 0)),
-             "close":  float(c.get("c", 0)),
-             "volume": float(c.get("v", 0))}
-            for c in all_c if isinstance(c, dict)]
-
-    df = (pd.DataFrame(rows)
-          .drop_duplicates("timestamp")
-          .sort_values("timestamp")
-          .reset_index(drop=True))
-    df["retorno_pct"] = df["close"].pct_change(1).shift(-1) * 100
-    return df.dropna(subset=["retorno_pct"])
+    clusters.sort(key=lambda x: (x["coin"] != "BTC", x["coin"] != "ETH", -x["total_not"]))
+    return clusters
