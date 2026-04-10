@@ -1,5 +1,31 @@
 {
-  "timestamp": "2026-04-10 18:09:40",
-  "BTC": {},
-  "ETH": {}
+  "timestamp": "2026-04-10 00:00:00",
+  "BTC": {
+    "status": "empty",
+    "spot_price": 0,
+    "total_call_oi": 0,
+    "total_put_oi": 0,
+    "put_call_ratio": 0,
+    "call_pct": 0,
+    "put_pct": 0,
+    "next_expiry": null,
+    "next_max_pain": 0,
+    "by_expiry": {},
+    "top_calls": [],
+    "top_puts": []
+  },
+  "ETH": {
+    "status": "empty",
+    "spot_price": 0,
+    "total_call_oi": 0,
+    "total_put_oi": 0,
+    "put_call_ratio": 0,
+    "call_pct": 0,
+    "put_pct": 0,
+    "next_expiry": null,
+    "next_max_pain": 0,
+    "by_expiry": {},
+    "top_calls": [],
+    "top_puts": []
+  }
 }
