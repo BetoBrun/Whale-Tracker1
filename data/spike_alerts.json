@@ -1,5 +1,33 @@
 [
   {
+    "id": "2026-04-10 07:09:49_0",
+    "type": "SPIKE_SHORT",
+    "display": "0xecb63c…",
+    "qs": 0.899,
+    "coin": "TAO",
+    "side": "SHORT",
+    "notional": 630012.21045,
+    "prev_notional": 409653.973474,
+    "delta_pct": 53.8,
+    "entry_px": 269.43,
+    "ts": "2026-04-10 07:09:49",
+    "btc": 71714.5,
+    "severity": "media"
+  },
+  {
+    "id": "2026-04-10 07:09:49_1",
+    "type": "SIDE_FLIP",
+    "display": "0x31dea2…",
+    "qs": 0.862,
+    "coin": "SOL",
+    "side": "LONG",
+    "prev_side": "SHORT",
+    "notional": 54959.443504,
+    "ts": "2026-04-10 07:09:49",
+    "btc": 71714.5,
+    "severity": "alta"
+  },
+  {
     "id": "2026-04-10 06:11:31_0",
     "type": "SIDE_FLIP",
     "display": "0x31dea2…",
