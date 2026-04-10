@@ -1,5 +1,20 @@
 [
   {
+    "id": "2026-04-10 09:59:21_0",
+    "type": "SPIKE_SHORT",
+    "display": "0xd4c1f7…",
+    "qs": 0.886,
+    "coin": "ZEC",
+    "side": "SHORT",
+    "notional": 710832.21276,
+    "prev_notional": 531659.21451,
+    "delta_pct": 33.7,
+    "entry_px": 378.058,
+    "ts": "2026-04-10 09:59:21",
+    "btc": 71764.5,
+    "severity": "media"
+  },
+  {
     "id": "2026-04-10 09:41:35_0",
     "type": "SPIKE_SHORT",
     "display": "0xecb63c…",
