@@ -1,5 +1,35 @@
 [
   {
+    "id": "2026-04-10 18:32:58_0",
+    "type": "SPIKE_SHORT",
+    "display": "0x31dea2…",
+    "qs": 0.862,
+    "coin": "BTC",
+    "side": "SHORT",
+    "notional": 1134559.00403,
+    "prev_notional": 702018.3265279998,
+    "delta_pct": 61.6,
+    "entry_px": 72820.1,
+    "ts": "2026-04-10 18:32:58",
+    "btc": 72926.5,
+    "severity": "media"
+  },
+  {
+    "id": "2026-04-10 18:32:58_1",
+    "type": "SPIKE_SHORT",
+    "display": "0x31dea2…",
+    "qs": 0.862,
+    "coin": "ETH",
+    "side": "SHORT",
+    "notional": 979064.5851,
+    "prev_notional": 475617.66903200006,
+    "delta_pct": 105.9,
+    "entry_px": 2241.75,
+    "ts": "2026-04-10 18:32:58",
+    "btc": 72926.5,
+    "severity": "media"
+  },
+  {
     "id": "2026-04-10 17:10:59_0",
     "type": "SPIKE_SHORT",
     "display": "0xecb63c…",
