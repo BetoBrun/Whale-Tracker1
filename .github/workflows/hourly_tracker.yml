@@ -2,7 +2,7 @@ name: Hourly Whale Tracker
 
 on:
   schedule:
-    - cron: "17 */4 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -21,36 +22,52 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Ensure fallback files
+        run: |
+          mkdir -p data logs
+          [ -f data/spike_alerts.json ] || echo '[]' > data/spike_alerts.json
+          [ -f data/spike_state.json ] || echo '{"timestamp":"'$(date -u +%Y-%m-%d\ %H:%M:%S)'","addresses":[],"positions":{}}' > data/spike_state.json
+          [ -f data/options_data.json ] || echo '{"timestamp":"'$(date -u +%Y-%m-%d\ %H:%M:%S)'","BTC":{"status":"empty","spot_price":0,"total_call_oi":0,"total_put_oi":0,"put_call_ratio":0,"call_pct":0,"put_pct":0,"next_expiry":null,"next_max_pain":0,"by_expiry":{},"top_calls":[],"top_puts":[]},"ETH":{"status":"empty","spot_price":0,"total_call_oi":0,"total_put_oi":0,"put_call_ratio":0,"call_pct":0,"put_pct":0,"next_expiry":null,"next_max_pain":0,"by_expiry":{},"top_calls":[],"top_puts":[]}}' > data/options_data.json
+          [ -f data/market_context.json ] || echo '{"timestamp":"'$(date -u +%Y-%m-%d\ %H:%M:%S)'","market_score":{"total_score":0,"bias":"NEUTRO","components":{}},"binance":{"BTC":{"funding_rate":0,"oi_usd":0,"long_ratio":0.5},"ETH":{"funding_rate":0,"oi_usd":0,"long_ratio":0.5}},"spot_flows":{"BTC":{"basis":0},"ETH":{"basis":0}},"liquidations":{"BTC":{"long_liq_usd":0,"short_liq_usd":0,"liq_bias":"NEUTRO"},"ETH":{"long_liq_usd":0,"short_liq_usd":0,"liq_bias":"NEUTRO"}},"options":{"max_pain":0,"put_call_ratio":0,"call_pct":50,"put_pct":50,"top_calls":[],"top_puts":[]},"hl_summary":{"btc_funding":0,"btc_oi_usd":0}}' > data/market_context.json
+          [ -f data/market_context_history.json ] || echo '[]' > data/market_context_history.json
+
       - name: Run tracker
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python run_once.py
 
-      - name: Build market context
+      - name: Run market context
         run: python market_context.py
-
-      - name: Build spike alerts
-        run: python spike_monitor.py
         continue-on-error: true
 
-      - name: Build options data
+      - name: Run options analyzer
         run: python options_analyzer.py
         continue-on-error: true
+
+      - name: Validate outputs
+        run: |
+          python - <<'PY'
+import json
+for f in ['data/alerts.json','data/market_context.json','data/options_data.json']:
+    with open(f, encoding='utf-8') as fp:
+        json.load(fp)
+    print('ok', f)
+PY
 
       - name: Commit data files
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/whale_snapshots.csv data/alerts.json || true
+          git add data/whale_snapshots.csv data/alerts.json data/options_data.json data/market_context.json data/market_context_history.json || true
           git add data/last_telegram_signal.json || true
-          git add data/market_context.json data/market_context_history.json || true
-          git add data/spike_alerts.json data/spike_state.json || true
-          git add data/options_data.json || true
           git add data/snapshot_*.png || true
-          git diff --cached --quiet || git commit -m "chore: snapshot $(date -u +'%Y-%m-%d %H:%M') UTC"
-          git push
+          git add logs/*.log || true
+          git diff --cached --quiet || git commit -m "tracker: $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git pull --rebase || true
+          git push || true
