@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-04-10T20:56:38Z",
-  "status": "initializing",
+  "generated_at": "2026-04-10T22:54:55Z",
+  "status": "degraded",
   "count_total": 0,
   "count_24h": 0,
   "by_severity": {
@@ -10,8 +10,9 @@
   },
   "events": [],
   "_health": {
-    "last_poll": null,
+    "last_poll": "2026-04-10T22:54:54Z",
     "addresses_monitored": 0,
-    "poll_success_rate": 0.0
+    "poll_success_rate": 0.0,
+    "error": "insufficient_addresses"
   }
 }
