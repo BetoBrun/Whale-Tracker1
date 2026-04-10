@@ -13,7 +13,7 @@ STATE_FILE = DATA_DIR / "last_telegram_signal.json"
 INFO_URL = "https://api.hyperliquid.xyz/info"
 LEADERBOARD_URL = "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard"
 
-TOP_N = int(os.getenv("TOP_N", "100"))
+TOP_N = int(os.getenv("TOP_N", "1000"))
 MIN_PNL_ALL_TIME = float(os.getenv("MIN_PNL_ALL_TIME", "250000"))
 MIN_NOTIONAL_POS = float(os.getenv("MIN_NOTIONAL_POS", "25000"))
 MIN_ACTIVE_WHALES = int(os.getenv("MIN_ACTIVE_WHALES", "15"))
