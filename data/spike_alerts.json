@@ -1,5 +1,35 @@
 [
   {
+    "id": "2026-04-10 16:35:23_0",
+    "type": "SPIKE_SHORT",
+    "display": "0xecb63c…",
+    "qs": 0.899,
+    "coin": "BNB",
+    "side": "SHORT",
+    "notional": 894788.260639,
+    "prev_notional": 691089.02646,
+    "delta_pct": 29.5,
+    "entry_px": 603.421,
+    "ts": "2026-04-10 16:35:23",
+    "btc": 72741.5,
+    "severity": "media"
+  },
+  {
+    "id": "2026-04-10 16:35:23_1",
+    "type": "SPIKE_LONG",
+    "display": "0xd4c1f7…",
+    "qs": 0.886,
+    "coin": "SOL",
+    "side": "LONG",
+    "notional": 1357127.992872,
+    "prev_notional": 1052432.191575,
+    "delta_pct": 29.0,
+    "entry_px": 84.4546,
+    "ts": "2026-04-10 16:35:23",
+    "btc": 72741.5,
+    "severity": "media"
+  },
+  {
     "id": "2026-04-10 15:35:59_0",
     "type": "SPIKE_SHORT",
     "display": "0xecb63c…",
