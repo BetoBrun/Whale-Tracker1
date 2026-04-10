@@ -1,1 +1,11 @@
-{"timestamp":"2026-04-10 00:00:00","addresses":[],"positions":{}}
+{
+  "timestamp": null,
+  "addresses": [],
+  "positions": {},
+  "health": {
+    "total_polls": 0,
+    "successful_polls": 0,
+    "consecutive_failures": 0,
+    "last_successful_poll": null
+  }
+}

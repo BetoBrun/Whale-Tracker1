@@ -1,1 +1,17 @@
-[]
+{
+  "generated_at": "2026-04-10T20:56:38Z",
+  "status": "initializing",
+  "count_total": 0,
+  "count_24h": 0,
+  "by_severity": {
+    "critica": 0,
+    "alta": 0,
+    "media": 0
+  },
+  "events": [],
+  "_health": {
+    "last_poll": null,
+    "addresses_monitored": 0,
+    "poll_success_rate": 0.0
+  }
+}
