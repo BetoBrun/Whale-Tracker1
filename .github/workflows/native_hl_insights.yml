@@ -1,12 +1,12 @@
-name: Hourly Whale Tracker
+name: Hyperliquid Native Insights (1h)
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "25 * * * *"
   workflow_dispatch:
 
 jobs:
-  run-tracker:
+  native-insights:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,22 +25,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run tracker
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python run_once.py
-
       - name: Generate native insights
         run: python hyperliquid_native_insights.py
 
-      - name: Commit data files
+      - name: Commit native insights
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/whale_snapshots.csv data/alerts.json || true
-          git add data/last_telegram_signal.json || true
           git add data/hl_native_insights.json || true
-          git add data/snapshot_*.png || true
-          git diff --cached --quiet || git commit -m "chore: snapshot $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git diff --cached --quiet || git commit -m "native-insights: $(date -u +'%H:%M') UTC"
           git push
