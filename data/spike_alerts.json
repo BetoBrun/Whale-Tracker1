@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-04-10 06:11:31_0",
+    "type": "SIDE_FLIP",
+    "display": "0x31dea2…",
+    "qs": 0.862,
+    "coin": "ETH",
+    "side": "LONG",
+    "prev_side": "SHORT",
+    "notional": 30847.802313999997,
+    "ts": "2026-04-10 06:11:31",
+    "btc": 72076.5,
+    "severity": "alta"
+  },
+  {
     "id": "2026-04-10 05:38:26_0",
     "type": "SIDE_FLIP",
     "display": "0x31dea2…",
