@@ -1,5 +1,48 @@
 [
   {
+    "id": "2026-04-10 11:06:50_0",
+    "type": "SPIKE_SHORT",
+    "display": "0xecb63c…",
+    "qs": 0.899,
+    "coin": "BTC",
+    "side": "SHORT",
+    "notional": 8459198.587248001,
+    "prev_notional": 6014129.869737,
+    "delta_pct": 40.7,
+    "entry_px": 71748.8,
+    "ts": "2026-04-10 11:06:50",
+    "btc": 71946.5,
+    "severity": "alta"
+  },
+  {
+    "id": "2026-04-10 11:06:50_1",
+    "type": "SIDE_FLIP",
+    "display": "0xd4c1f7…",
+    "qs": 0.886,
+    "coin": "PUMP",
+    "side": "SHORT",
+    "prev_side": "LONG",
+    "notional": 178975.03832,
+    "ts": "2026-04-10 11:06:50",
+    "btc": 71946.5,
+    "severity": "alta"
+  },
+  {
+    "id": "2026-04-10 11:06:50_2",
+    "type": "SPIKE_SHORT",
+    "display": "0x31dea2…",
+    "qs": 0.862,
+    "coin": "BTC",
+    "side": "SHORT",
+    "notional": 575751.124675,
+    "prev_notional": 269840.626209,
+    "delta_pct": 113.4,
+    "entry_px": 71750.5,
+    "ts": "2026-04-10 11:06:50",
+    "btc": 71946.5,
+    "severity": "media"
+  },
+  {
     "id": "2026-04-10 09:59:21_0",
     "type": "SPIKE_SHORT",
     "display": "0xd4c1f7…",
