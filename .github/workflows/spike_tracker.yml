@@ -1,121 +1,30 @@
 name: Spike Monitor (10min)
-
 on:
   schedule:
     - cron: "0,10,20,30,40,50 * * * *"
   workflow_dispatch:
-
-env:
-  PYTHONUNBUFFERED: "1"
-
 jobs:
   spike-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    
     permissions:
       contents: write
-    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      
-      - name: Ensure data files exist
-        run: |
-          mkdir -p data logs
-          
-          # Create spike_alerts.json if missing
-          if [ ! -f data/spike_alerts.json ]; then
-            cat > data/spike_alerts.json << 'EOF'
-          {
-            "schema_version": "2.0.0",
-            "generated_at": "2026-01-01T00:00:00Z",
-            "status": "initializing",
-            "count_total": 0,
-            "count_24h": 0,
-            "by_severity": {"critica": 0, "alta": 0, "media": 0},
-            "events": [],
-            "_health": {
-              "last_poll": null,
-              "addresses_monitored": 0,
-              "poll_success_rate": 0
-            }
-          }
-          EOF
-          fi
-          
-          # Create spike_state.json if missing
-          if [ ! -f data/spike_state.json ]; then
-            cat > data/spike_state.json << 'EOF'
-          {
-            "schema_version": "2.0.0",
-            "timestamp": "2026-01-01T00:00:00Z",
-            "addresses": [],
-            "positions": {},
-            "health": {
-              "last_successful_poll": null,
-              "consecutive_failures": 0,
-              "total_polls": 0,
-              "successful_polls": 0
-            }
-          }
-          EOF
-          fi
-      
+      - run: pip install -r requirements.txt
       - name: Run spike monitor
-        id: spike
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python spike_monitor.py
+      - name: Commit
         run: |
-          python spike_monitor.py
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
-        continue-on-error: true
-      
-      - name: Validate output
-        run: |
-          python << 'EOF'
-          import json
-          try:
-              with open('data/spike_alerts.json') as f:
-                  data = json.load(f)
-                  print(f"Events: {len(data.get('events', []))}")
-                  print(f"Status: {data.get('status', 'unknown')}")
-                  health = data.get('_health', {})
-                  print(f"Success rate: {health.get('poll_success_rate', 0)}")
-                  print("Validation: OK")
-          except Exception as e:
-              print(f"Validation failed: {e}")
-              exit(1)
-          EOF
-      
-      - name: Commit changes
-        run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/spike_alerts.json data/spike_state.json logs/ || true
-          
-          if git diff --cached --quiet; then
-            echo "No changes"
-            exit 0
-          fi
-          
-          git commit -m "spike: $(date -u +'%H:%M') UTC"
-          git push || echo "Push failed, will retry next run"
-      
-      - name: Summary
-        if: always()
-        run: |
-          echo "## Spike Monitor" >> $GITHUB_STEP_SUMMARY
-          echo "- Exit: ${{ steps.spike.outputs.exit_code }}" >> $GITHUB_STEP_SUMMARY
+          git add data/spike_alerts.json data/spike_state.json || true
+          git diff --cached --quiet || git commit -m "spike: $(date -u +'%H:%M') UTC"
+          git push || true
