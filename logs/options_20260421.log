@@ -372,3 +372,37 @@ requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: https://ww
 2026-04-21 21:11:52,710 WARNING   BTC: gerando fallback estruturado
 2026-04-21 21:11:52,711 WARNING   ETH: gerando fallback estruturado
 2026-04-21 21:11:52,711 INFO   ✅ Salvo em /home/runner/work/Whale-Tracker1/Whale-Tracker1/data/options_data.json
+2026-04-21 22:08:30,789 INFO 📊 Options analysis — 2026-04-21 22:08:30
+2026-04-21 22:08:31,009 INFO   BTC: 872 book summaries
+2026-04-21 22:08:31,466 INFO   ETH: 738 book summaries
+2026-04-21 22:08:31,767 INFO   Analisando BTC…
+2026-04-21 22:08:32,077 ERROR   BTC análise falhou: 400 Client Error: Bad Request for url: https://www.deribit.com/api/v2/public/get_instruments?currency=BTC&kind=option&expired=False
+Traceback (most recent call last):
+  File "/home/runner/work/Whale-Tracker1/Whale-Tracker1/options_analyzer.py", line 289, in run_options_analysis
+    instruments = get_instruments(currency)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Whale-Tracker1/Whale-Tracker1/options_analyzer.py", line 89, in get_instruments
+    instruments = _get('get_instruments', {'currency': currency, 'kind':'option', 'expired':False})
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Whale-Tracker1/Whale-Tracker1/options_analyzer.py", line 39, in _get
+    r.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/requests/models.py", line 1028, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: https://www.deribit.com/api/v2/public/get_instruments?currency=BTC&kind=option&expired=False
+2026-04-21 22:08:32,080 INFO   Analisando ETH…
+2026-04-21 22:08:32,383 ERROR   ETH análise falhou: 400 Client Error: Bad Request for url: https://www.deribit.com/api/v2/public/get_instruments?currency=ETH&kind=option&expired=False
+Traceback (most recent call last):
+  File "/home/runner/work/Whale-Tracker1/Whale-Tracker1/options_analyzer.py", line 289, in run_options_analysis
+    instruments = get_instruments(currency)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Whale-Tracker1/Whale-Tracker1/options_analyzer.py", line 89, in get_instruments
+    instruments = _get('get_instruments', {'currency': currency, 'kind':'option', 'expired':False})
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Whale-Tracker1/Whale-Tracker1/options_analyzer.py", line 39, in _get
+    r.raise_for_status()
+  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/requests/models.py", line 1028, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 400 Client Error: Bad Request for url: https://www.deribit.com/api/v2/public/get_instruments?currency=ETH&kind=option&expired=False
+2026-04-21 22:08:32,384 WARNING   BTC: gerando fallback estruturado
+2026-04-21 22:08:32,384 WARNING   ETH: gerando fallback estruturado
+2026-04-21 22:08:32,385 INFO   ✅ Salvo em /home/runner/work/Whale-Tracker1/Whale-Tracker1/data/options_data.json
