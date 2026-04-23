@@ -2,36 +2,41 @@ name: Hyperliquid Native Insights (1h)
 
 on:
   schedule:
-    - cron: "25 * * * *"
+    - cron: "29 * * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-hl-insights
+  cancel-in-progress: true
 
 jobs:
   native-insights:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Generate native insights
+      - name: Run native HL insights
         run: python hyperliquid_native_insights.py
 
-      - name: Commit native insights
+      - name: Commit HL native insights
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/hl_native_insights.json || true
-          git diff --cached --quiet || git commit -m "native-insights: $(date -u +'%H:%M') UTC"
+          git diff --cached --quiet || git commit -m "chore: update HL native insights"
           git push
