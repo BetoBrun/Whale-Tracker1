@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-05-25 21:36:54",
+  "timestamp": "2026-05-25 23:34:29",
   "BTC": {
     "status": "error",
     "error": "400 Client Error: Bad Request for url: https://www.deribit.com/api/v2/public/get_instruments?currency=BTC&kind=option&expired=False",
