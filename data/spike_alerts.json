@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-05T22:50:42Z",
+  "generated_at": "2026-06-06T00:04:46Z",
   "status": "degraded",
   "count_total": 0,
   "count_24h": 0,
@@ -10,7 +10,7 @@
   },
   "events": [],
   "_health": {
-    "last_poll": "2026-06-05T22:50:42Z",
+    "last_poll": "2026-06-06T00:04:45Z",
     "addresses_monitored": 0,
     "poll_success_rate": 0.0,
     "error": "insufficient_addresses"
