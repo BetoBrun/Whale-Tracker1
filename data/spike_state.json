@@ -3,7 +3,7 @@
   "addresses": [],
   "positions": {},
   "health": {
-    "total_polls": 971,
+    "total_polls": 972,
     "successful_polls": 0,
     "consecutive_failures": 0,
     "last_successful_poll": null
