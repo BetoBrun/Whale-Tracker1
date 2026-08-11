@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-08-11 09:16:20",
+  "timestamp": "2026-08-11 10:13:46",
   "BTC": {
     "status": "error",
-    "error": "BTC: spot price zero",
+    "error": "400 Client Error: Bad Request for url: https://www.deribit.com/api/v2/public/get_instruments?currency=BTC&kind=option&expired=False",
     "source": "generated_fallback",
     "currency": "BTC",
     "spot_price": 0,
@@ -20,7 +20,7 @@
   },
   "ETH": {
     "status": "error",
-    "error": "ETH: spot price zero",
+    "error": "400 Client Error: Bad Request for url: https://www.deribit.com/api/v2/public/get_instruments?currency=ETH&kind=option&expired=False",
     "source": "generated_fallback",
     "currency": "ETH",
     "spot_price": 0,
