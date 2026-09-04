@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-04T09:37:52Z",
+  "timestamp": "2026-09-04T14:20:35Z",
   "score": 0,
   "market_score": {
     "total_score": 0,
@@ -40,24 +40,24 @@
       "oi_usd": 0.0,
       "long_ratio": 0.5,
       "short_ratio": 0.5,
-      "spot_price": 81174.0
+      "spot_price": 79098.0
     },
     "ETH": {
       "funding_rate": 0.0,
       "oi_usd": 0.0,
       "long_ratio": 0.5,
       "short_ratio": 0.5,
-      "spot_price": 2530.4
+      "spot_price": 2446.4
     }
   },
   "spot_flows": {
     "BTC": {
-      "spot_price": 81174.0,
+      "spot_price": 79098.0,
       "basis_1h": 0.0,
       "spot_chg_1h": 0.0
     },
     "ETH": {
-      "spot_price": 2530.4,
+      "spot_price": 2446.4,
       "basis_1h": 0.0,
       "spot_chg_1h": 0.0
     }
@@ -85,33 +85,33 @@
   "hl_summary": {
     "btc_funding": 0.0013,
     "eth_funding": 0.0013,
-    "btc_oi_usd": 2897179646.0,
-    "eth_oi_usd": 2324771753.0,
+    "btc_oi_usd": 3002453382.0,
+    "eth_oi_usd": 2294934254.0,
     "top5": [
       {
         "coin": "BTC",
         "funding": 0.0013,
-        "oi_usd": 2897179646.0
+        "oi_usd": 3002453382.0
       },
       {
         "coin": "ETH",
         "funding": 0.0013,
-        "oi_usd": 2324771753.0
+        "oi_usd": 2294934254.0
       },
       {
         "coin": "HYPE",
         "funding": 0.0013,
-        "oi_usd": 2084260321.0
+        "oi_usd": 2008714878.0
       },
       {
         "coin": "SOL",
         "funding": 0.0013,
-        "oi_usd": 606989468.0
+        "oi_usd": 584695556.0
       },
       {
         "coin": "ZEC",
-        "funding": 0.0028,
-        "oi_usd": 585040183.0
+        "funding": 0.0013,
+        "oi_usd": 582849393.0
       }
     ]
   }
