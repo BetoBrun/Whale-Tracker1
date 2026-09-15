@@ -1,5 +1,10 @@
 [
   {
+    "timestamp": "2026-09-15T18:10:37Z",
+    "score": 0,
+    "bias": "NEUTRO"
+  },
+  {
     "timestamp": "2026-09-15T13:31:38Z",
     "score": 0,
     "bias": "NEUTRO"
@@ -1191,11 +1196,6 @@
   },
   {
     "timestamp": "2026-08-21T03:14:53Z",
-    "score": 0,
-    "bias": "NEUTRO"
-  },
-  {
-    "timestamp": "2026-08-21T01:56:12Z",
     "score": 0,
     "bias": "NEUTRO"
   }
